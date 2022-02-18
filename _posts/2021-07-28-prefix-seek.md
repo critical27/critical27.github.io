@@ -26,6 +26,7 @@ When `options.prefix_extractor` is not nullptr and with default ReadOptions, ite
 
 **也就是说在配置了`prefix_extractor`的前提下, rocksdb是prefix模式**, 当`ReadOptions.prefix_same_as_start=true`时，超出范围一定会返回`Valid()=false`
 因此在我们的实现中还需要手动判断prefix是否匹配
+
 ```c++
 class RocksPrefixIter : public KVIterator {
 
@@ -111,6 +112,7 @@ class SliceTransform {
 * FixedPrefixTransform / CappedPrefixTransform
 
 省略若干
+
 ```c++
 // 长度大于prefix_len_的key才会写入prefix bloom filter
 class FixedPrefixTransform : public SliceTransform {
@@ -289,7 +291,6 @@ int main()
     return 0;
 }
 ```
-
 
 插入的prefix bloom filter
 

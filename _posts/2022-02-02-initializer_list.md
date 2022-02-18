@@ -18,13 +18,14 @@ List-initialization can be used
 * as a subscript
 
 ```c++
-int a= {1};
+int a={1};
 std::complex<double> z{1,2};
 new std::vector<std::string>{"once","upon","a","time"};   // 4 string elements
 f({"Nicholas","Annemarie"});                              // pass list of two elements to a funcion
 return { "Norah" };                                       // return list of one element
 int* e{};                                                 // initialization to zero / null pointer
 x = double{1};                                            // explicitly construct a double
+std::map<std::string,int> anim = {{"bear",4},{"cassowary",2},{"tiger",7}};
 ```
 
 ### Example1
@@ -79,8 +80,6 @@ const double __a[3] = {double{1}, double{2}, double{3}};
 X x(std::initializer_list<double>(__a, __a + 3));
 ```
 
-**在通过`initializer_list<double>`构造vec的时候需要调用复制构造**
-
 > assuming that the implementation can construct an initializer_list object with a pair of pointers.
 
 ### 再看Example2
@@ -111,7 +110,7 @@ std::vector vec(std::initializer_list<std::unique_ptr<int>>(__a, __a + 2));
 
 `::new ((void*)__p) _Up(_VSTD::forward<_Args>(__args)...);`
 
-而传入的`__args`是`const std::unique_ptr<int> &>`类型，构造`_Up`要调用复制构造，而`unique_ptr`没有复制构造，就报错了。
+而传入的`__args`是`const std::unique_ptr<int> &`类型，构造`_Up`要调用复制构造，而`unique_ptr`没有复制构造，就报错了。
 
 ```text
 /Library/Developer/CommandLineTools/SDKs/MacOSX12.1.sdk/usr/include/c++/v1/memory:916:28: error: call to implicitly-deleted copy constructor of 'std::unique_ptr<int>'
@@ -164,35 +163,11 @@ In file included from /usr/bin/../lib/gcc/x86_64-linux-gnu/11/../../../../includ
         std::vector<std::unique_ptr<int>> vec{ std::make_unique<int>(1), std::make_unique<int>(2)};
 ```
 
-所以在通过`initializer_list<std::unique_ptr<int>>`构造vec的时候需要调用复制构造，也就导致了编译报错。
-
-### 总结
-
-到这里我们已经明白了使用初始化列表来进行构造时候会发生的事，我们以`std::vector vec{std::make_shared<int>(1), std::make_shared<int>(2)};`为例
-
-1. 创建一个const T类型的数组，并使用初始化列表中的元素来初始化这个数组
-
-`const std::shared_ptr<int> __a[] = {std::make_shared<int>(1), std::make_shared<int>(2)};`
-
-2. 创建一个`std::initializer_list`对象，这个对象指向上面的数组
-
-`std::initializer_list<std::shared_ptr<int>> __temp(__a, __a + 2);`
-
-3. 使用这个`std::initializer_list`对象通过复制构造，完成真正的构造
-
-`std::vector vec(__temp);`
-
-第2步中的`initializer_list`的说明(cpp-reference)
-
-> The underlying array is a temporary array of type `const T[N]`, in which each element is `copy-initialized` (except that narrowing conversions are invalid) from the corresponding element of the original initializer list. **The lifetime of the underlying array is the same as any other temporary object, except that initializing an initializer_list object from the array extends the lifetime of the array exactly like binding a reference to a temporary** (with the same exceptions, such as for initializing a non-static class member). The underlying array may be allocated in read-only memory.
-
-再看下最后一步中，vector的构造的说明，原型如下:
-
-`vector(std::initializer_list<T> init, const Allocator& alloc = Allocator());`
+所以在通过`initializer_list<std::unique_ptr<int>>`构造vector的时候需要调用`unique_ptr`的复制构造，也就导致了编译报错。
 
 ### Example3
 
-有了上面的总结，我们可以再看一个例子:
+我们可以再看一个例子:
 
 ```c++
 #include <initializer_list>
@@ -226,15 +201,43 @@ test.cpp:5:38: warning: returning address of local temporary object [-Wreturn-st
 1 warning generated.
 ```
 
-### 到底有几个shared_ptr
+### 总结
+
+到这里我们已经明白了使用初始化列表来进行构造时候会发生的事，我们以`std::vector vec{std::make_shared<int>(1), std::make_shared<int>(2)};`为例
+
+1. 创建一个const T类型的数组，并使用初始化列表中的元素来初始化这个数组
+
+`const std::shared_ptr<int> __a[] = {std::make_shared<int>(1), std::make_shared<int>(2)};`
+
+2. 创建一个`std::initializer_list`对象，这个对象指向上面的数组
+
+`std::initializer_list<std::shared_ptr<int>> __temp(__a, __a + 2);`
+
+3. 使用这个`std::initializer_list`对象通过vector的复制构造，完成真正的构造
+
+`std::vector vec(__temp);`
+
+> An `initializer_list<T>` is passed by value. That is required by the overload resolution rules and does not impose overhead because an `initializer_list<T>` object is just a small handle (typically two words) to an array of `T`.
+
+第2步中的`initializer_list`的说明(cpp-reference)
+
+> The underlying array is a temporary array of type `const T[N]`, in which each element is `copy-initialized` (except that narrowing conversions are invalid) from the corresponding element of the original initializer list. **The lifetime of the underlying array is the same as any other temporary object, except that initializing an initializer_list object from the array extends the lifetime of the array exactly like binding a reference to a temporary** (with the same exceptions, such as for initializing a non-static class member). The underlying array may be allocated in read-only memory.
+
+再看下最后一步中，vector的构造的说明，原型如下:
+
+`vector(std::initializer_list<T> init, const Allocator& alloc = Allocator());`
+
+### 到底构造了几个shared_ptr
+
+有了上面的总结，我们应该可以回答下面的代码中构造了几个`shared_ptr`
 
 ```c++
 int main() {
   std::vector<std::shared_ptr<int>> vec{std::make_shared<int>(1), std::make_shared<int>(2)};
 
   // 等价于如下代码
-  // const std::unique_ptr<int> __a[] = {std::make_unique<int>(1), std::make_unique<int>(2)};
-  // std::vector vec(std::initializer_list<std::unique_ptr<int>>(__a, __a + 2));
+  // const std::shared_ptr<int> __a[] = {std::make_shared<int>(1), std::make_shared<int>(2)};
+  // std::vector vec(std::initializer_list<std::shared_ptr<int>>(__a, __a + 2));
 }
 ```
 
@@ -245,11 +248,16 @@ int main() {
   std::vector<std::shared_ptr<int>> vec =
     std::vector<std::shared_ptr<int>, std::allocator<std::shared_ptr<int>>>
       {
-        std::initializer_list<std::shared_ptr<int>>{std::make_shared<int>(1), std::make_shared<int>(2)},
+        std::initializer_list<std::shared_ptr<int>>{
+            std::make_shared<int>(1), std::make_shared<int>(2)
+        },
         std::allocator<std::shared_ptr<int>>()
       };
 }
 ```
+
+> 两个是在构造initializer_list时构造的
+> 另外两个则是在调用vector的复制构造时构造的
 
 在这个main函数中发生的事如下：
 
@@ -311,7 +319,7 @@ int main() {
 #include <memory>
 
 int main() {
-  std::array<std::shared_ptr<int>, 2> data{std::make_shared<int>(1), std::make_shared<int>(2)};
+    std::array<std::shared_ptr<int>, 2> data{std::make_shared<int>(1), std::make_shared<int>(2)};
 }
 ```
 
@@ -337,7 +345,7 @@ Direct-list-initialization
 
 Copy-list-initialization
   T object = {arg1, arg2, ...};	                (6)
-  function( { arg1, arg2, ... } )	              (7)
+  function( { arg1, arg2, ... } )	            (7)
   return { arg1, arg2, ... };                   (8)
   object[ { arg1, arg2, ... } ]               	(9)
   object = { arg1, arg2, ... }                  (10)

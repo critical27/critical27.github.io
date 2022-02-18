@@ -37,7 +37,7 @@ Status WriteBatchInternal::DeleteRange(WriteBatch* b, uint32_t column_family_id,
   LocalSavePoint save(b);
   WriteBatchInternal::SetCount(b, WriteBatchInternal::Count(b) + 1);
   if (column_family_id == 0) {
-	  // rep_就是个string 格式参见write_batch.cc的注释
+   // rep_就是个string 格式参见write_batch.cc的注释
     b->rep_.push_back(static_cast<char>(kTypeRangeDeletion));
   } else {
     b->rep_.push_back(static_cast<char>(kTypeColumnFamilyRangeDeletion));
@@ -456,6 +456,7 @@ SplitBySnapshot函数会生成如下结果：
 ```
 
 最后在`CompactionRangeDelAggregator::AddTombstones`中的结果会保存在`std::map<SequenceNumber, StripeRep> reps_`中
+
 ```
 reps_ = {
   {s0, StripeRep[s0, 0, vector<std::unique_ptr>[FragmentedRangeTombstoneIterator...]]}

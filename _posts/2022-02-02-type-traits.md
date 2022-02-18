@@ -11,6 +11,7 @@ tags: c++
 1. `Type traits`通常被用在`conditional compliation`中(c++17引入)，编译器来根据不同的输入类型，生成不同的代码。（后面举例）
 
 比如，给定一个类型`T`，它可以是`int`，`bool`，`std::vector`或者任意类型，借助`type traits`，我们可以对编译器问各种问题：
+
 * T是整型吗
 * T是函数吗
 * T是指针吗
@@ -26,6 +27,7 @@ tags: c++
 2. `Type traits`还可以对类型做转换
 
 比如给定类型`T`，我们可以做如下转换：
+
 * 增加或者删除`const`描述符
 * 增加或者删除引用
 * 增加或者删除指针
@@ -39,6 +41,7 @@ tags: c++
 ### What is a type trait?
 
 本质上`type traits`就是一个**模板类**，这个模板类包含若干成员常量(`member constant`)，这些常量：
+
 * 要么是之前向编译器询问的问题的答案
 * 要么是类型转换之后的结果
 
@@ -102,6 +105,7 @@ struct is_floating_point_int {
 ```
 
 所以上面的代码实际就会转换成如下代码
+
 ```c++
 int main() {
     std::cout << std::is_floating_point_Class::value << '\n';
@@ -181,6 +185,7 @@ algorithm("hello"); // T is string, build error!
 #### altering types
 
 类型转换其实在标准库中会非常常见，比如`std::move`本质上就是把一个类型`T`转换为右值引用`T&&`，实际上`std::move`本质上就是调用了`std::remove_reference`这个`type traits`。`std::move`实际的操作如下：
+
 1. 如果传入的类型`T`带引用`&`则把它去掉(没有则不做任何操作)，此时的类型为`T'`
 2. `T'`再转换为右值引用`T'&&`
 

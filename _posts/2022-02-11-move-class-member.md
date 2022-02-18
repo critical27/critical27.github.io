@@ -17,8 +17,8 @@ tags: c++
 * If E2 is a static data member and the type of E2 is T, then E1.E2 is an lvalue; the expression designates the named member of the class. The type of E1.E2 is T.
 * If E2 is declared to have type “reference to T”, then E1.E2 is an lvalue; the type of E1.E2 is T.
 * If E2 is a non-static data member and the type of E1 is “cq1 vq1 X”, and the type of E2 is “cq2 vq2 T”, the expression designates the corresponding member subobject of the object designated by the first expression.
-    * If E1 is an lvalue, then E1.E2 is an lvalue;
-    * otherwise E1.E2 is an xvalue.
+  * If E1 is an lvalue, then E1.E2 is an lvalue;
+  * otherwise E1.E2 is an xvalue.
 * If E2 is a bit-field, E1.E2 is a bit-field.
 
 简单来说，对于非static成员变量和非引用类型成员变量，`E2`都是`E1`的一部分，所以返回的`E1.E2`的类型会根据`E1`的类型来决定，如果`E1`是`lvalue`，`E1.E2`也是`lvalue`，否则`E1.E2`是`xvalue`。
