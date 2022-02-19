@@ -54,9 +54,9 @@ Status WriteBatchInternal::DeleteRange(WriteBatch* b, uint32_t column_family_id,
 
 ## Flush流程
 
-![figure](https://github.com/critical27/critical27.github.io/raw/master/archive/FragmentedRangeTombstoneIterator.png)
+![figure]({{'/archive/FragmentedRangeTombstoneIterator.png' | prepend: site.baseurl}})
 
-参见[Flush](https://critical27.github.io/c++/2022/01/30/flush.html)中的`WriteLevel0Table`和`BuildTable`相关部分
+参见[Flush](https://critical27.github.io/rocksdb/2022/01/22/flush.html)中的`WriteLevel0Table`和`BuildTable`相关部分
 
 ### WriteLevel0Table
 
@@ -342,7 +342,7 @@ FragmentTombstones这个是按照start_key排序遍历delete-range，在碰到[d
 
 > 图里面最终结果是放在`tombstone_seqs_`里面 实际代码是在`tombstones_`变量中(通过取对应`tombstone_seqs_`中的对应下标[start_indx, end_idx))
 
-![figure](https://github.com/critical27/critical27.github.io/raw/master/archive/FragmentTombstones.png)
+![figure]({{'/archive/FragmentTombstones.png' | prepend: site.baseurl}})
 
 其实就是根据不同delete-range的范围，确定各个范围的seqnums
 
@@ -444,7 +444,7 @@ void CompactionRangeDelAggregator::AddTombstones(
 
 上面的函数会调用`TruncatedRangeDelIterator::SplitBySnapshot`又会接着调用`FragmentedRangeTombstoneIterator::SplitBySnapshot`，可以看下面的例子：
 
-![figure](https://github.com/critical27/critical27.github.io/raw/master/archive/SplitBySnapshot.png)
+![figure]({{'/archive/SplitBySnapshot.png' | prepend: site.baseurl}})
 
 SplitBySnapshot函数会生成如下结果：
 
@@ -480,7 +480,7 @@ reps_ = {
 
 ## 读流程
 
-![figure](https://github.com/critical27/critical27.github.io/raw/master/archive/skyline.png)
+![figure]({{'/archive/skyline.png' | prepend: site.baseurl}})
 
 构建skyline，加速读性能。横轴代表的是key，纵轴代表该key对应的seqnum。其中A区域代表构建skyline之前，range tombstone存放在不同的区域，且其中可能有重叠的部分。构建完成skyline之后就变成了图B的样子，能够提供二分查找，减少了在不同区域的重复查找问题。
 

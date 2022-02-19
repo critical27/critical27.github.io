@@ -25,7 +25,7 @@ f({"Nicholas","Annemarie"});                              // pass list of two el
 return { "Norah" };                                       // return list of one element
 int* e{};                                                 // initialization to zero / null pointer
 x = double{1};                                            // explicitly construct a double
-std::map<std::string,int> anim = {{"bear",4},{"cassowary",2},{"tiger",7}};
+std::map<std::string,int> anim = { {"bear",4},{"cassowary",2},{"tiger",7} };
 ```
 
 ### Example1
