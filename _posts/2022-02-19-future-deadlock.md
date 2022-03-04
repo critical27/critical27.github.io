@@ -75,6 +75,8 @@ struct tryExecutorCallableResult {
   typedef Future<value_type> Return;
 };
 
+// 这个类用来保存thenValue中回调的相关信息
+// 比如上面的例子中的回调 有1一个参数status 没有返回语句 Result类型是void
 template <bool isTry_, typename F, typename... Args>
 struct argResult {
   using Function = F;
@@ -88,8 +90,8 @@ struct argResult {
 };
 
 // isFutureOrSemiFuture实际就是判断传入的类是不是Future或者SemiFuture
-// 文章开头示例中的sendSnapshot.thenValue中的这个回调没有返回值类型，所以Arg::Result默认是void，
-// 对应匹配的应该是这一条
+// 文章开头示例中的sendSnapshot.thenValue中的这个回调没有返回值类型，所以特化为isFutureOrSemiFuture<void>
+// 对应匹配的应该是这一条 所以Inner和Return在这个例子中都是folly::Unit
 template <typename T>
 struct isFutureOrSemiFuture : std::false_type {
   using Inner = lift_unit_t<T>;
@@ -100,16 +102,16 @@ struct isFutureOrSemiFuture : std::false_type {
 实际上`tryExecutorCallableResult`经过`template specification`如下
 
 ```c++
+// T为sendSnapshot的返回的Future<T>中的T
 template <
     typename T,
     typename F,
     typename = std::enable_if_t<is_invocable_v<F, Executor*, Try<T>&&>>>
 struct tryExecutorCallableResult {
   typedef detail::argResult<true, F, Executor::KeepAlive<>&&, Try<T>&&> Arg;
-  typedef std::false_type ReturnsFuture;
-  typedef typename T value_type;
-  typedef Future<T> Return;
-};
+  typedef isFutureOrSemiFuture<void> ReturnsFuture;
+  typedef folly::Unit value_type;
+  typedef Future<value_type> Return;
 ```
 
 ### thenImplementation
@@ -127,7 +129,7 @@ FutureBase<T>::thenImplementation(
   static_assert(R::Arg::ArgsSize::value == 2, "Then must take two arguments");
   typedef typename R::ReturnsFuture::Inner B;
 
-  // step 1: 构造Future对应的Promise
+  // step 1: 构造Future对应的Promise, B实际是folly::Unit类型
   Promise<B> p;
   p.core_->initCopyInterruptHandlerFrom(this->getCore());
 
@@ -165,7 +167,7 @@ FutureBase<T>::thenImplementation(
 1. 构造一个`Promise`
 2. 获取`Promise`对应的`SemiFuture`
 3. 设置`SemiFuture`的`Exectuor`
-4. 由于要返回的是`Future`，所以将`SemiFuture`中的`Core`设置给`Future`
+4. 由于要返回的是`Future`，所以将`SemiFuture`中的`Core`设置给`Future`(`Core`里面包含executor)
 5. 要返回的`Future`中的`Core`已经构造完成，设置对应的`Callback`
 
 前两步代码如下
@@ -185,20 +187,12 @@ SemiFuture<T> Promise<T>::getSemiFuture() {
   return SemiFuture<T>(&getCore());
 }
 
-/// Construct a (logical) SemiFuture-of-void.
-///
-/// Postconditions:
-///
-/// - `valid() == true`
-/// - `isReady() == true`
-/// - `hasValue() == true`
-template <class T2 = T>
-/* implicit */ SemiFuture(
-    typename std::enable_if<std::is_same<Unit, T2>::value>::type* p = nullptr)
-    : Base(p) {}
+explicit SemiFuture(Core* obj) : Base(obj) {}
 ```
 
-第三步：`sf.setExecutor(folly::Executor::KeepAlive<>{this->getExecutor()});`。我们会设置`Promise`对应的`SemiFuture`在哪个Executor上执行后面的回调。
+第三步：`sf.setExecutor(folly::Executor::KeepAlive<>{this->getExecutor()});`。
+
+这一步要做的是设置`then`所返回的`Future`的executor，这个executor和`thenValue`之前的`Future`(也就是`sendSnapshot`返回的`Future`)的executor是同一个。
 
 ```c++
 Executor* CoreBase::getExecutor() const {
@@ -207,6 +201,16 @@ Executor* CoreBase::getExecutor() const {
   }
   // executor_是KeepAliveOrDeferred
   return executor_.getKeepAliveExecutor();
+}
+
+/// Call only from consumer thread, either before attaching a callback or
+/// after the callback has already been invoked, but not concurrently with
+/// anything which might trigger invocation of the callback.
+void CoreBase::setExecutor(KeepAliveOrDeferred&& x) {
+  DCHECK(
+      state_ != State::OnlyCallback &&
+      state_ != State::OnlyCallbackAllowInline);
+  executor_ = std::move(x);
 }
 
 Executor* KeepAliveOrDeferred::getKeepAliveExecutor() const noexcept {
@@ -309,9 +313,12 @@ void CoreBase::setCallback_(
 }
 ```
 
-根据死锁时的pstack可以看到，我们进入了`doCallback`这个函数。这只会发生在`consumer`第一次拿state时是`Start`状态(对应`auto state = state_.load(std::memory_order_acquire);`这行)，而当在想把state通过`cas`操作改为`OnlyCallback`时失败了，然后会发现`producer`已经把state改为了`OnlyResult`，所以`consumer`可以直接调用callback，所以进入到`doCallback`。
+根据死锁时的pstack可以看到，我们进入了`doCallback`这个函数。这可能发生在两种情况下：
 
-这也就解释了为什么测试时候不是稳定复现的原因，只有在`cas`失败时才会死锁。我们可以再详细列下几种情况，Future起始状态都是`Start`
+1. `consumer`获取状态时已经是`OnlyResult`
+2. `consumer`第一次拿state时是`Start`状态(对应`auto state = state_.load(std::memory_order_acquire);`这行)，而当在想把state通过`cas`操作改为`OnlyCallback`时失败了，然后会发现`producer`已经把state改为了`OnlyResult`，所以`consumer`可以直接调用callback，所以进入到`doCallback`。
+
+这也就解释了为什么测试时候不是稳定复现的原因，我们可以再详细列下几种情况，Future起始状态都是`Start`
 
 * case 1: 先`setCallback` 再`setResult`
 
@@ -339,6 +346,92 @@ Start --------------------------------------------------------------------------
 下面是setCallback
 ```
 
-只有在最后一种情况才会出现死锁。
+case2和case3都会出现死锁。
 
-起始修复的方法也很简单，要么使用`SemiFuture`，要么由于`lock_`只是用来保护一个bool变量，可以换成`atomic_bool`去掉锁就好了。
+修掉bug的方法也很简单，要么使用`SemiFuture`，要么由于`lock_`只是用来保护一个bool变量，可以换成`atomic_bool`去掉锁就好了。
+
+最后再看看`doCallback`的代码
+
+```c++
+void CoreBase::doCallback(
+    Executor::KeepAlive<>&& completingKA, State priorState) {
+  DCHECK(state_ == State::Done);
+
+  // 获取当前core的executor
+  auto executor = std::exchange(executor_, KeepAliveOrDeferred{});
+
+  // Customise inline behaviour
+  // If addCompletingKA is non-null, then we are allowing inline execution
+  auto doAdd = [](Executor::KeepAlive<>&& addCompletingKA,
+                  KeepAliveOrDeferred&& currentExecutor,
+                  auto&& keepAliveFunc) mutable {
+    if (auto deferredExecutorPtr = currentExecutor.getDeferredExecutor()) {
+      // 从DeferredExecutor调用callback, addFrom函数的作用如下:
+      // * run func inline if there is a stored executor and completingKA matches the stored executor
+      // * enqueue func into the stored executor if one exists
+      // * store func until an executor is set otherwise
+      deferredExecutorPtr->addFrom(
+          std::move(addCompletingKA), std::move(keepAliveFunc));
+    } else {
+      // 当前的executor和要执行callback的executor是同一个executor 就直接inline调用callback 否则调用executor::add
+      // If executors match call inline
+      auto currentKeepAlive = std::move(currentExecutor).stealKeepAlive();
+      if (addCompletingKA.get() == currentKeepAlive.get()) {
+        keepAliveFunc(std::move(currentKeepAlive));
+      } else {
+        std::move(currentKeepAlive).add(std::move(keepAliveFunc));
+      }
+    }
+  };
+
+  if (executor) {
+    // If we are not allowing inline, clear the completing KA to disallow
+    if (!(priorState == State::OnlyCallbackAllowInline)) {
+      completingKA = Executor::KeepAlive<>{};
+    }
+    exception_wrapper ew;
+    // We need to reset `callback_` after it was executed (which can happen
+    // through the executor or, if `Executor::add` throws, below). The
+    // executor might discard the function without executing it (now or
+    // later), in which case `callback_` also needs to be reset.
+    // The `Core` has to be kept alive throughout that time, too. Hence we
+    // increment `attached_` and `callbackReferences_` by two, and construct
+    // exactly two `CoreAndCallbackReference` objects, which call
+    // `derefCallback` and `detachOne` in their destructor. One will guard
+    // this scope, the other one will guard the lambda passed to the executor.
+    attached_.fetch_add(2, std::memory_order_relaxed);
+    callbackReferences_.fetch_add(2, std::memory_order_relaxed);
+    CoreAndCallbackReference guard_local_scope(this);
+    CoreAndCallbackReference guard_lambda(this);
+    try {
+      doAdd(
+          std::move(completingKA),
+          std::move(executor),
+          [core_ref =
+               std::move(guard_lambda)](Executor::KeepAlive<>&& ka) mutable {
+            auto cr = std::move(core_ref);
+            CoreBase* const core = cr.getCore();
+            RequestContextScopeGuard rctx(std::move(core->context_));
+            core->callback_(*core, std::move(ka), nullptr);
+          });
+    } catch (...) {
+      ew = exception_wrapper(std::current_exception());
+    }
+    if (ew) {
+      RequestContextScopeGuard rctx(std::move(context_));
+      callback_(*this, Executor::KeepAlive<>{}, &ew);
+    }
+  } else {
+    attached_.fetch_add(1, std::memory_order_relaxed);
+    SCOPE_EXIT {
+      context_.~Context();
+      callback_.~Callback();
+      detachOne();
+    };
+    RequestContextScopeGuard rctx(std::move(context_));
+    callback_(*this, std::move(completingKA), nullptr);
+  }
+}
+```
+
+到这callback已经被触发了，此时会去调用`thenValue`中的回调函数，最终导致死锁。

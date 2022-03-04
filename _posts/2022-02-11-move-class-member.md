@@ -149,5 +149,5 @@ fStr: fff, gStr:
 
 ### reference
 
-<http://eel.is/c++draft/expr.ref#>
-<https://oliora.github.io/2016/02/12/where-to-put-std-move.html>
+* <http://eel.is/c++draft/expr.ref#>
+* <https://oliora.github.io/2016/02/12/where-to-put-std-move.html>
