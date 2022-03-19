@@ -8,7 +8,7 @@ tags: c++ folly async
 
 ## 使用folly::Future姿势不对导致死锁
 
-直接上代码，简化实现如下所示
+直接上代码，简化实现如下所示：
 
 ```c++
 nebula::cpp2::ErrorCode Host::startSendSnapshot() {
@@ -76,7 +76,7 @@ struct tryExecutorCallableResult {
 };
 
 // 这个类用来保存thenValue中回调的相关信息
-// 比如上面的例子中的回调 有1一个参数status 没有返回语句 Result类型是void
+// 比如上面的例子中的回调 有一个参数status 没有返回语句 Result类型是void
 template <bool isTry_, typename F, typename... Args>
 struct argResult {
   using Function = F;
@@ -116,7 +116,7 @@ struct tryExecutorCallableResult {
 
 ### thenImplementation
 
-由于`ReturnsFuture`是`std::false_type`，所以匹配到下面这个`thenImplementation`，返回值类型是`R::Return`也就是`Future<T>`，
+由于`ReturnsFuture`是`std::false_type`，所以匹配到下面这个`thenImplementation`，返回值类型是`R::Return`也就是`Future<T>`。
 
 ```c++
 // Variant: returns a value
@@ -129,7 +129,7 @@ FutureBase<T>::thenImplementation(
   static_assert(R::Arg::ArgsSize::value == 2, "Then must take two arguments");
   typedef typename R::ReturnsFuture::Inner B;
 
-  // step 1: 构造Future对应的Promise, B实际是folly::Unit类型
+  // step 1: 构造Future对应的Promise, B实际是folly::Unit类型 (也就是例子里面thenValue的返回类型 由于没有返回值 所以是folly::Unit)
   Promise<B> p;
   p.core_->initCopyInterruptHandlerFrom(this->getCore());
 
@@ -142,14 +142,16 @@ FutureBase<T>::thenImplementation(
   auto f = Future<B>(sf.core_);
   sf.core_ = nullptr;
 
-  // step 5
+  // step 5: 同时还会设置Core的状态
   this->setCallback_(
       [state = futures::detail::makeCoreCallbackState(
            std::move(p), static_cast<F&&>(func))](
           Executor::KeepAlive<>&& ka, Try<T>&& t) mutable {
+        // t是上一个回调执行的结果
         if (!R::Arg::isTry() && t.hasException()) {
           state.setException(std::move(ka), std::move(t.exception()));
         } else {
+          // 如果上一个执行结果没有抛异常 就调用then后面的函数
           auto propagateKA = ka.copy();
           state.setTry(std::move(propagateKA), makeTryWith([&] {
                          return detail_msvc_15_7_workaround::invoke(
@@ -168,7 +170,7 @@ FutureBase<T>::thenImplementation(
 2. 获取`Promise`对应的`SemiFuture`
 3. 设置`SemiFuture`的`Exectuor`
 4. 由于要返回的是`Future`，所以将`SemiFuture`中的`Core`设置给`Future`(`Core`里面包含executor)
-5. 要返回的`Future`中的`Core`已经构造完成，设置对应的`Callback`
+5. 要返回的`Future`中的`Core`已经构造完成，设置对应的`Callback`，设置这个`Future`里面Core的状态并返回
 
 前两步代码如下
 
@@ -227,7 +229,7 @@ Executor* KeepAliveOrDeferred::getKeepAliveExecutor() const noexcept {
 
 ### setCallback
 
-然后我们就来到了最后的第五步
+然后我们就来到了最重要的第五步，这一步会设置当前这个`Future`的状态和它后面要执行的`callback`。
 
 ```c++
 template <class T>
@@ -349,89 +351,3 @@ Start --------------------------------------------------------------------------
 case2和case3都会出现死锁。
 
 修掉bug的方法也很简单，要么使用`SemiFuture`，要么由于`lock_`只是用来保护一个bool变量，可以换成`atomic_bool`去掉锁就好了。
-
-最后再看看`doCallback`的代码
-
-```c++
-void CoreBase::doCallback(
-    Executor::KeepAlive<>&& completingKA, State priorState) {
-  DCHECK(state_ == State::Done);
-
-  // 获取当前core的executor
-  auto executor = std::exchange(executor_, KeepAliveOrDeferred{});
-
-  // Customise inline behaviour
-  // If addCompletingKA is non-null, then we are allowing inline execution
-  auto doAdd = [](Executor::KeepAlive<>&& addCompletingKA,
-                  KeepAliveOrDeferred&& currentExecutor,
-                  auto&& keepAliveFunc) mutable {
-    if (auto deferredExecutorPtr = currentExecutor.getDeferredExecutor()) {
-      // 从DeferredExecutor调用callback, addFrom函数的作用如下:
-      // * run func inline if there is a stored executor and completingKA matches the stored executor
-      // * enqueue func into the stored executor if one exists
-      // * store func until an executor is set otherwise
-      deferredExecutorPtr->addFrom(
-          std::move(addCompletingKA), std::move(keepAliveFunc));
-    } else {
-      // 当前的executor和要执行callback的executor是同一个executor 就直接inline调用callback 否则调用executor::add
-      // If executors match call inline
-      auto currentKeepAlive = std::move(currentExecutor).stealKeepAlive();
-      if (addCompletingKA.get() == currentKeepAlive.get()) {
-        keepAliveFunc(std::move(currentKeepAlive));
-      } else {
-        std::move(currentKeepAlive).add(std::move(keepAliveFunc));
-      }
-    }
-  };
-
-  if (executor) {
-    // If we are not allowing inline, clear the completing KA to disallow
-    if (!(priorState == State::OnlyCallbackAllowInline)) {
-      completingKA = Executor::KeepAlive<>{};
-    }
-    exception_wrapper ew;
-    // We need to reset `callback_` after it was executed (which can happen
-    // through the executor or, if `Executor::add` throws, below). The
-    // executor might discard the function without executing it (now or
-    // later), in which case `callback_` also needs to be reset.
-    // The `Core` has to be kept alive throughout that time, too. Hence we
-    // increment `attached_` and `callbackReferences_` by two, and construct
-    // exactly two `CoreAndCallbackReference` objects, which call
-    // `derefCallback` and `detachOne` in their destructor. One will guard
-    // this scope, the other one will guard the lambda passed to the executor.
-    attached_.fetch_add(2, std::memory_order_relaxed);
-    callbackReferences_.fetch_add(2, std::memory_order_relaxed);
-    CoreAndCallbackReference guard_local_scope(this);
-    CoreAndCallbackReference guard_lambda(this);
-    try {
-      doAdd(
-          std::move(completingKA),
-          std::move(executor),
-          [core_ref =
-               std::move(guard_lambda)](Executor::KeepAlive<>&& ka) mutable {
-            auto cr = std::move(core_ref);
-            CoreBase* const core = cr.getCore();
-            RequestContextScopeGuard rctx(std::move(core->context_));
-            core->callback_(*core, std::move(ka), nullptr);
-          });
-    } catch (...) {
-      ew = exception_wrapper(std::current_exception());
-    }
-    if (ew) {
-      RequestContextScopeGuard rctx(std::move(context_));
-      callback_(*this, Executor::KeepAlive<>{}, &ew);
-    }
-  } else {
-    attached_.fetch_add(1, std::memory_order_relaxed);
-    SCOPE_EXIT {
-      context_.~Context();
-      callback_.~Callback();
-      detachOne();
-    };
-    RequestContextScopeGuard rctx(std::move(context_));
-    callback_(*this, std::move(completingKA), nullptr);
-  }
-}
-```
-
-到这callback已经被触发了，此时会去调用`thenValue`中的回调函数，最终导致死锁。

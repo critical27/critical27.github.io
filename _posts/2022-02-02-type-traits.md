@@ -48,7 +48,7 @@ tags: c++
 我们分别举例：
 
 ```c++
-template<typename T> 
+template<typename T>
 struct is_floating_point;
 ```
 

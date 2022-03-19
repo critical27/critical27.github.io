@@ -542,33 +542,41 @@ void ThriftServer::stopListening() {
 
 调用顺序：
 
+```
   `cleanUp` -> `stopListening` -> `stopAcceptingAndJoinOutstandingRequests` -> `stopCPUWorkers` -> `stopWorkers`
 
   `~ThriftServer` -> `stopCPUWorkers` -> `stopWorkers`
+```
 
 * `stopWorkersOnStopListening_` = false, `joinRequestsWhenServerStops_` = true
 
 调用顺序：
 
+```
   `cleanUp` -> `stopListening` -> `stopAcceptingAndJoinOutstandingRequests`
 
   `~ThriftServer` -> `stopCPUWorkers` -> `stopWorkers`
+```
 
 * `stopWorkersOnStopListening_` = true, `joinRequestsWhenServerStops_` = false
 
 调用顺序：
 
+```
   `cleanUp` -> `stopListening` -> `stopAcceptingAndJoinOutstandingRequests` -> `stopCPUWorkers` -> `stopWorkers`
 
   `~ThriftServer` -> `stopAcceptingAndJoinOutstandingRequests` -> `stopCPUWorkers` -> `stopWorkers`
+```
 
 * `stopWorkersOnStopListening_` = false, `joinRequestsWhenServerStops_` = false
 
 调用顺序：
 
+```
   `cleanUp` -> `stopListening`
 
   `~ThriftServer` -> `stopAcceptingAndJoinOutstandingRequests` -> `stopCPUWorkers` -> `stopWorkers`
+```
 
 ---
 
