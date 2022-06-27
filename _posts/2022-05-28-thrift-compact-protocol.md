@@ -1,7 +1,7 @@
 ---
 layout: post
 title: thrift compact protocol
-date: 2022-03-19 00:00:00 +0800
+date: 2022-05-28 00:00:00 +0800
 categories: c++
 tags: c++ thrift fbthrift
 ---
