@@ -2,7 +2,7 @@
 layout: single
 title: How to upgrade read lock to write lock
 date: 2022-07-18 00:00:00 +0800
-categories: C++ folly
+categories: 学习
 tags: C++ folly
 ---
 

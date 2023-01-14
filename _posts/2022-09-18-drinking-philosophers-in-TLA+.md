@@ -2,13 +2,11 @@
 layout: single
 title: Drinking philosophers in TLA+
 date: 2022-07-18 00:00:00 +0800
-categories: TLA+ PlusCal
+categories: 学习
 tags: TLA+ PlusCal
 ---
 
 TLA+进阶哲学家问题~
-
-# Drinking Philosopher in TLA+
 
 我们在[上一篇](https://critical27.github.io/tla+/2022/07/17/dining-philosophers-in-TLA+.html)大概介绍了如何通过TLA+来验证哲学家问题。一个哲学家问题的解法要能满足如下两个性质：
 

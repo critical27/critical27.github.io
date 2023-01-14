@@ -2,7 +2,7 @@
 layout: single
 title: fbthrift start-up and tear-down
 date: 2022-03-05 00:00:00 +0800
-categories: C++ fbthrift
+categories: 实践
 tags: C++ fbthrift
 ---
 

@@ -2,7 +2,7 @@
 layout: single
 title: "rocksdb prefix seek"
 date: 2021-07-28 00:00:00 +0800
-categories: RocksDB
+categories: 实践
 tags: RocksDB
 ---
 

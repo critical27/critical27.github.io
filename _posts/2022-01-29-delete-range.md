@@ -2,7 +2,7 @@
 layout: single
 title: "rocksdb delete range"
 date: 2022-01-29 00:00:00 +0800
-categories: RocksDB
+categories: 源码
 tags: RocksDB
 ---
 

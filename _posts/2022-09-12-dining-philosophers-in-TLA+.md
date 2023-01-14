@@ -2,13 +2,11 @@
 layout: single
 title: Dining philosophers in TLA+
 date: 2022-07-18 00:00:00 +0800
-categories: TLA+ PlusCal
+categories: 学习
 tags: TLA+ PlusCal
 ---
 
 TLA+哲学家问题~
-
-# Dining Philosophers in TLA+
 
 > 希望这是最后一次开坑TLA+，期望至少学点东西，也能够分享点东西出来
 

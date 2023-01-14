@@ -2,7 +2,7 @@
 layout: single
 title: thrift compact protocol
 date: 2022-05-28 00:00:00 +0800
-categories: C++ thrift
+categories: 学习
 tags: C++ thrift fbthrift
 ---
 

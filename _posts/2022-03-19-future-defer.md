@@ -2,7 +2,7 @@
 layout: single
 title: folly::Future defer
 date: 2022-03-19 00:00:00 +0800
-categories: C++ folly
+categories: 源码
 tags: C++ folly async
 ---
 

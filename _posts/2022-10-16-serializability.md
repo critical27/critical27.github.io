@@ -2,7 +2,7 @@
 layout: single
 title: Conflict Serializability and View Serializability
 date: 2022-10-16 00:00:00 +0800
-categories: TLA+ PlusCal Transaction
+categories: 学习
 tags: TLA+ PlusCal Transaction
 ---
 

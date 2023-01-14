@@ -2,9 +2,11 @@
 layout: single
 title: 2PC in TLA+, step 3
 date: 2022-10-03 00:00:00 +0800
-categories: TLA+ PlusCal Transaction
+categories: 学习
 tags: TLA+ PlusCal Transaction
 ---
+
+面对真实的世界...
 
 ## 2PC with RM and TM crash
 

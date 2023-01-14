@@ -2,7 +2,7 @@
 layout: single
 title: 2PC in TLA+, step 1
 date: 2022-10-01 00:00:00 +0800
-categories: TLA+ PlusCal Transaction
+categories: 学习
 tags: TLA+ PlusCal Transaction
 ---
 

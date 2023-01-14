@@ -2,7 +2,7 @@
 layout: single
 title: "What is type traits"
 date: 2022-02-02 00:00:00 +0800
-categories: C++
+categories: 学习
 tags: C++
 ---
 

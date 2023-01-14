@@ -1,8 +1,8 @@
 ---
 layout: single
-title: SIMD Intrinsics整理
+title: SIMD Intrinsics
 date: 2022-06-27 00:00:00 +0800
-categories: C++ SIMD
+categories: 学习
 tags: C++ SIMD
 ---
 

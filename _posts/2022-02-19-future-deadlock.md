@@ -2,7 +2,7 @@
 layout: single
 title: folly::Future deadlock example
 date: 2022-02-19 00:00:00 +0800
-categories: C++ folly
+categories: 实践
 tags: C++ folly async
 ---
 

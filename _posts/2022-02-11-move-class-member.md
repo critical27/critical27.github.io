@@ -2,7 +2,7 @@
 layout: single
 title: "std::move(object.member) vs std::move(object).member"
 date: 2022-02-08 00:00:00 +0800
-categories: C++
+categories: 学习
 tags: C++
 ---
 

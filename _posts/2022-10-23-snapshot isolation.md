@@ -2,7 +2,7 @@
 layout: single
 title: Snapshot Isolation in TLA+
 date: 2022-10-23 00:00:00 +0800
-categories: TLA+ PlusCal Transaction
+categories: 学习
 tags: TLA+ PlusCal Transaction
 ---
 
