@@ -258,3 +258,4 @@ void Update(const K&k, const V&v) {
 ## Reference
 
 [Lock-Free Data Structures with Hazard Pointers](https://erdani.org/publications/cuj-2004-12.pdf)
+[Hazard Pointers: Safe Memory Reclamation for Lock-Free Objects](https://www.eecg.toronto.edu/~amza/ece1747h/papers/hazard_pointers.pdf)
