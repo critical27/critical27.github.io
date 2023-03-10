@@ -1,7 +1,7 @@
 ---
 layout: single
 title: Differences between SMR mechanisms
-date: 2023-01-14 00:00:00 +0800
+date: 2023-02-06 00:00:00 +0800
 categories: 论文 实践
 tags: C++ Concurrency
 ---
