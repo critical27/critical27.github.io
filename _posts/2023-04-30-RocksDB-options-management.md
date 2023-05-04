@@ -6,6 +6,8 @@ categories: 源码
 tags: RocksDB
 ---
 
+RocksDB无数参数的管理办法.
+
 ## RocksDB options
 
 RockDB里最基础的两种配置就是`DBOptions`和`ColumnFamilyOptions`, 这两个类构成了打开RocksDB时需要传入的`Options`. 相关类的继承关系如下:
