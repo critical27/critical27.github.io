@@ -140,10 +140,8 @@ LogLog算法对于之前的朴素算法优化在于, 原先我们只能得到一
 
 比如上图所示, 系统每次会生成一个24位的随机数, 计算其哈希值, 其中低6位(Register Index)用来表示桶的下标, 中间15位(Register Value)则用来基数统计, 高3位预留.
 
-比如对于`10186536`, 计算Jenkins hash function, 得到哈希值为`1450065460`, 二进制表示如上所示. 其中:
+比如对于`10186536`, 计算[Jenkins hash function](http://en.wikipedia.org/wiki/Jenkins_hash_function), 得到哈希值为`1450065460`, 二进制表示如上所示. 其中:
 
-> [http://en.wikipedia.org/wiki/Jenkins_hash_function](http://en.wikipedia.org/wiki/Jenkins_hash_function)
->
 - m 表示桶的个数, 分成了`2 ^ 6 = 64`个桶
 - 蓝色的bit表示在桶中的下标, 例如图中的`110100`表示二进制的52，所以10186536被统计在中间大表格标红的第52个桶之中
 - 绿色的bit用来做基数统计, 具体方式就是找到从右往左第一个1出现的位置, 记作当前这个value对应的`Register Value`：从图中可以看到标绿的bit中，从右往左数，第一个1出现在第4位，所以10186536对应的`Register Value`就是4, 将其更新到`Register Values`中的第52个桶中
@@ -155,7 +153,7 @@ LogLog算法对于之前的朴素算法优化在于, 原先我们只能得到一
 
 - 能够统计对最多`2 ^ 24 = 16777216`个数据进行基数统计
 - 总计`2 ^ 6 = 64`个桶
-- 每个桶的`Register Value`对应的bit位取值范围是`[0, 2 ^ 15`), 即`[0, 32767)`, 而Register Value本身的取值范围则是这一段bit的长度, 即`[1, 15]`, 表示这个范围需要至少需要4个bit. 即每个桶需要的空间为4个bit.
+- 每个桶的`Register Value`对应的bit位取值范围是`[0, 2 ^ 15)`, 即`[0, 32767)`, 而Register Value本身的取值范围则是这一段bit的长度, 即`[1, 15]`, 表示这个范围需要至少需要4个bit. 即每个桶需要的空间为4个bit.
 
 所以需要的空间为`64 * 4bit = 256bit = 32字节`. 与之对比, Redis中使用HyperLogLog需要能对64位整形数据进行基数统计, 其中总共有`2 ^ 16 = 16384`个桶, 每个桶中需要6个bit来保存最大的`Register Value`, 所以需要占用内存为`16384 * 6 / 8 = 12KB`. 可以看到使用HLL来进行基数估计所需要的内存是非常少的.
 
@@ -165,8 +163,8 @@ LogLog算法对于之前的朴素算法优化在于, 原先我们只能得到一
 
 ### Reference
 
-[大数据领域的近似分析方法（一） - 知乎 (zhihu.com)](https://zhuanlan.zhihu.com/p/141344814)
+[大数据领域的近似分析方法](https://zhuanlan.zhihu.com/p/141344814)
 
-[基数估计算法 - 知乎 (zhihu.com)](https://zhuanlan.zhihu.com/p/271186546)
+[基数估计算法](https://zhuanlan.zhihu.com/p/271186546)
 
-[DataSketches | (apache.org)](https://datasketches.apache.org/docs/HLL/HLL.html)
+[DataSketches](https://datasketches.apache.org/docs/HLL/HLL.html)
