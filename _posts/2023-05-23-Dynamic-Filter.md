@@ -57,6 +57,15 @@ Dynamic Filter很多时候并不能减少扫描的数据量，而只能减少输
 
 如果下推的是一个In-list Filter或者MinMax Filter，如果底层的存储是HDFS，可能就能基于文件进行过滤。如果是Impala使用Kudu来存储数据，那有可能进行column predicate下推，过滤性能可能会更好。这种情况下能够减少扫描的数据量，而Dynamic Filter过滤性能最好时，能够把整个文件都跳过扫描。
 
+### Dynamic Filter的理论基础
+
+```
+A INNER JOIN B = (A LEFT SEMI-JOIN B) INNER JOIN B
+A INNER JOIN B = A INNER JOIN (B LEFT SEMI_JOIN A)
+```
+
+生成的Dynamic Filter即是给left semi-join的join condition，即生成的join condition要求A left semi-join B的结果必须是A innner join B的结果的超集。超集意味着和Dynamic Filter允许有假阳性，即Dynamic Filter可以不是一个精确的filter。它可以多捞一些数据，也就是满足Dynamic Filter的数据有可能在后面的inner join时仍然被过滤掉。
+
 ## Dynamic Filter in Velox
 
 我们以这样一个语句来介绍Velox中的Dynamic Filter。
@@ -110,6 +119,7 @@ HashProbe::isBlocked
 另外，由于pipeline的调用顺序，`HashProbe`可能会在调用`Driver::pushdownFilters`之前，就会调用`HashProbe::getOutput`，此时必须返回nullptr。整套流程说起来其实比较简单，但涉及的代码细节挺多，后面会再写一篇，结合源码详细解释Dynamic Filter的下推过程。
 
 ## Reference
+
 [Runtime Filtering for Impala Queries (Impala 2.5 or higher only) (apache.org)](https://impala.apache.org/docs/build/html/topics/impala_runtime_filtering.html#runtime_filtering_file_formats)
 
 [Impala - Runtime Filter的原理及实现-云社区-华为云 (huaweicloud.com)](https://bbs.huaweicloud.com/blogs/174769)
