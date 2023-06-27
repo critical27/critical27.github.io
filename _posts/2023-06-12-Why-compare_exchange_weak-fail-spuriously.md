@@ -138,7 +138,29 @@ bool compare_exchange_weak(T& old_v, T new_v) {
 
 这样就能完美解释`spuriously fail`出现的现象了。如果上锁失败，此时期望值可能和当前值相等，也可能不相等。而相等时，也不进行任何操作，直接返回false，也就是所谓的`spuriously fail`。
 
-最后一个问题是，什么情况可能会出现上锁失败，最终导致`spuriously fail`呢？一种可能的解释就是，当需要上锁时，在某些平台上，这个CPU需要不断询问其他CPU能否获取exclusive ownership，而这个过程在一段时间内其他CPU无法及时响应，最终导致超时。
+那什么情况可能会出现上锁失败，最终导致`spuriously fail`呢？一种可能的解释就是，当需要上锁时，在某些平台上，这个CPU需要不断询问其他CPU能否获取exclusive ownership，而这个过程在一段时间内其他CPU无法及时响应，最终导致超时。
+
+最后还有一点，CAS操作需要传入两个memory order，一个是用来读，一个则是用来写，实际上也就对应了CAS成功和失败。要知道，memory order也是借助硬件才能实现的，所以这一切就顺理成章了。考虑memory order之后的伪代码实现可能如下：
+
+```cpp
+bool compare_exchange_strong(T& old_v, T new_v, memory_order on_success, memory_order on_failure) {
+  T tmp = value.load(on_failure);
+  if (tmp != old_v) {
+    old_v = tmp;
+    return false;
+  }
+  Lock L;       // Get exclusive access
+  tmp = value;  // value could have changed!
+  if (tmp != olv_v) {
+    old_v = tmp;
+    return false;
+  }
+  value.store(new_v, on_success);
+  return true;
+}
+```
+
+Done~
 
 ### Reference
 
