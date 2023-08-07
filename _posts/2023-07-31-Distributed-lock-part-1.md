@@ -3,7 +3,7 @@ layout: single
 title: Distributed lock - part 1
 date: 2023-07-31 00:00:00 +0800
 categories: 学习
-tags: Concurrency Redis
+tags: Concurrency Redis Consensus
 ---
 
 最近看了一些关于分布式锁的文章，很有意思，进行一下总结梳理。今天这一篇，我们会聚焦于为什么需要分布式锁，分布式锁能够保证什么，以及常见的分布式锁实现方式。
