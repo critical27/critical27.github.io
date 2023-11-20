@@ -28,8 +28,9 @@ iter->Next(); // Find next key-value pair inside prefix "foo"
 
 When `options.prefix_extractor` is not nullptr and with default ReadOptions, iterators are not guaranteed a total order of all keys, but only keys for the same prefix. When doing Iterator.Seek(lookup_key), RocksDB will extract the prefix of lookup_key. If there is one or more keys in the database matching prefix of lookup_key, RocksDB will place the iterator to the key equal or larger than lookup_key of the same prefix, as for total ordering mode. If no key of the prefix equals or is larger than lookup_key, or after calling one or more Next(), we finish all keys for the prefix, **we might return Valid()=false**, or **any key (might be non-existing) that is larger than the previous key**. Setting `ReadOptions.prefix_same_as_start=true` guarantees the first of those two behaviors.
 
-**也就是说在配置了`prefix_extractor`的前提下, rocksdb是prefix模式**, 当`ReadOptions.prefix_same_as_start=true`时，超出范围一定会返回`Valid()=false`
-因此在我们的实现中还需要手动判断prefix是否匹配
+**也就是说在配置了`prefix_extractor`的前提下, rocksdb是prefix模式**, 当`ReadOptions.prefix_same_as_start=true`时，超出范围一定会返回`Valid()=false`.
+
+而我们目前版本中没有设置`prefix_same_as_start=true`, 因此在还需要手动判断prefix是否匹配
 
 ```c++
 class RocksPrefixIter : public KVIterator {
@@ -41,7 +42,7 @@ class RocksPrefixIter : public KVIterator {
 }
 ```
 
-而不配置`prefix_extractor`的时候, rocksdb需要用户自己判断是否超出范围等等 [Manual prefix iterating](https://github.com/facebook/rocksdb/wiki/Prefix-Seek#manual-prefix-iterating)
+而不配置`prefix_extractor`的时候, rocksdb需要用户自己判断是否超出范围等等, 具体参考这里[Manual prefix iterating](https://github.com/facebook/rocksdb/wiki/Prefix-Seek#manual-prefix-iterating)
 
 因为有这些行为:
 > Some undefined result might include: deleted keys might show up, key ordering is not followed, or very slow queries. Also note that even data within the prefix range might not be correct if the iterator has moved out of the prefix range and come back again.
@@ -145,17 +146,7 @@ class CappedPrefixTransform : public SliceTransform {
 
 参考[DBIter](DBIter.md)里面`DBIter::Seek`和`DBIter::FindNextUserEntryInternal`部分
 
-prefix_same_as_start_ = true时
-
-1. Transform target -> target_prefix
-
-生成target的prefix
-
-2. FindNextUserEntry
-
-不断进行查找，当前缀不匹配时完成。
-
-`prefix_extractor_->Transform(ikey_.user_key).compare(*prefix) != 0`
+当`prefix_same_as_start_ = true`时, 首先会把`target`转换为`target_prefix`. 然后不断调用`FindNextUserEntry`进行查找，当前缀不匹配时完成。(`prefix_extractor_->Transform(ikey_.user_key).compare(*prefix) != 0`)
 
 ```c++
 void DBIter::Seek(const Slice& target) {
