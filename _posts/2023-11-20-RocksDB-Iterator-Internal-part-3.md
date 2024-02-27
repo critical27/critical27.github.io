@@ -70,7 +70,7 @@ InternalIterator* BlockBasedTable::NewIterator(
 }
 ```
 
-> 注意`BlockBasedTableIterator`构造的第5个参数如果为ture，即没有指定`total_order_seek`且指定了`prefix_extractor`时，可以在使用`BlockBasedTableIterator`时通过检查前缀布隆过滤器是否匹配，避免读取index block和data block。
+> 注意`BlockBasedTableIterator`构造的第5个参数如果为true，即没有指定`total_order_seek`且指定了`prefix_extractor`时，可以在使用`BlockBasedTableIterator`时通过检查前缀布隆过滤器是否匹配，避免读取index block和data block。
 > 
 
 ### Index
