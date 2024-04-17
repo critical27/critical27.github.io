@@ -26,7 +26,7 @@ tags: LDBC
 
 SNB的读请求分为两大类：14个Complex read-only queries以及7个Short read-only queries。
 
-Complex读请求都是以一个给定Person出发，查询一跳或者两跳子图内的相关信息。比如Interactive Complex 9（简称IC9）的查询pattern如下：给定一个起始的人，查询这个人的朋友或者朋友的朋友创建的最近20条消息。=
+Complex读请求都是以一个给定Person出发，查询一跳或者两跳子图内的相关信息。比如Interactive Complex 9（简称IC9）的查询pattern如下：给定一个起始的人，查询这个人的朋友或者朋友的朋友创建的最近20条消息。
 
 ![figure]({{'/archive/LDBC SNB-6.png' | prepend: site.baseurl}})
 
@@ -67,11 +67,11 @@ SNB Interactive Workload主要认为Complex Read Query应该主导是性能测�
 
 ![figure]({{'/archive/LDBC SNB-8.png' | prepend: site.baseurl}})
 
-比如在SF100中每执行527个Update Query之后应该执行一次Complex Read Query 9。前面提过，每个Update Query的调度时间由DataGen已经决定了，因此每一个Complex Read的调度时间也就确定了。这里可以暂时将调度时间理解为相对于性能测试开始时间的一个相对时间，这个相对时间实际还会受到SNB Driver相关参数的影响。之所以是调度时间而不是执行时间的原因在于待测数据库可能已经满负载或者没有相应，导致某个Query可能已经到了调度时间，但无法及时执行Query。
+比如在SF100中每执行527个Update Query之后应该执行一次Complex Read Query 9。前面提过，每个Update Query的调度时间由DataGen已经决定了，因此每一个Complex Read的调度时间也就确定了。这里可以暂时将调度时间理解为相对于性能测试开始时间的一个相对时间，这个相对时间实际还会受到SNB Driver相关参数的影响。之所以是调度时间而不是执行时间的原因在于待测数据库可能已经满负载或者没有响应，导致某个Query可能已经到了调度时间，但无法及时执行Query。
 
 > 这里就可以理解为什么SNB号称其测试结果可重复，关键之处就是DataGen生成的数据是确定性的。一旦Update Query调度时间确定，也就确定了Complex Read Query的调度时间，进而确保其性能测试结果可重复。了解这一点对于后续理解性能测试的结果以及SNB Driver的相关参数是至关重要的。
 
-而Short Query会被穿插在每一个Complex Query之后。前面提到过Short Query分为两大类，查询人的相关信息以及查询消息的相关信息。准确来说，不同类型的Complex Query可能会返回不同信息，根据Comlex Query的查询结果，后续会从Short Query中挑选一类，并把Complex Read的结果（比如Person或者Message的标识符）作为Short Query的参数进行查询。
+而Short Query会被穿插在每一个Complex Query之后。前面提到过Short Query分为两大类，查询人的相关信息以及查询消息的相关信息。准确来说，不同类型的Complex Query可能会返回不同信息，根据Complex Query的查询结果，后续会从Short Query中挑选一类，并把Complex Read的结果（比如Person或者Message的标识符）作为Short Query的参数进行查询。
 
 一个Short Query被调度之后，后续有可能会调度另一个Short Query，每次概率逐渐降低。即一个Complex Query之后，可能调度一连串Short Query（论文中称为short read random walk）。不同的Query后面可能触发的Short Query类型不同，如下表所示，比如IC10之后就只能触发IS1、IS2和IS3。
 
