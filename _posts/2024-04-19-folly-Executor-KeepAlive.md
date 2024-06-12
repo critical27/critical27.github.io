@@ -288,7 +288,7 @@ void reset() noexcept {
 
 在解释更多内部原理之前，我们通过一个简单测试看看KeepAlive的使用方式。
 
-一个常见的错误使用方式就是，如果获取了一个`KeepAlive`之后，没有将其释放，那么对应的`Executor`是永远不会释放（这也正是`KeepAlive`存在的意义所在）。例如下面的代码因为`ka`仍然持有着`pool`的指针，就会永远被阻塞在`pool.reset()`。
+一个常见的错误使用方式就是，如果获取了一个`KeepAlive`之后，没有将其释放，那么对应的`Executor`是永远不会释放（这也正是`KeepAlive`存在的意义所在）。例如下面的代码因为`ka`仍然持有着`pool`的指针，就会永远被阻塞在`pool`的析构（stop或者join也是一样的）
 
 ```cpp
 TEST(KeepAlive, Case1) {
