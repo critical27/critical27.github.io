@@ -3,7 +3,7 @@ layout: single
 title: Parking lot - yet another futex
 date: 2023-07-07 00:00:00 +0800
 categories: 学习
-tags: linux folly
+tags: Linux folly
 ---
 
 Parking lot vs Futex?

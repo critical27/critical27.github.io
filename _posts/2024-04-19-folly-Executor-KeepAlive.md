@@ -3,7 +3,7 @@ layout: single
 title: folly::Executor::KeepAlive
 date: 2024-04-17 00:00:00 +0800
 categories: 源码 学习
-tags: LDBC
+tags: folly Concurrency
 ---
 
 之前一直没有总结过`Executor`中的`KeepAlive`，最近因为工作中使用`Executor`又碰到了一些问题，趁热打铁一下。

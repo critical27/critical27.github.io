@@ -3,7 +3,7 @@ layout: single
 title: What is Core Analyzer
 date: 2024-06-12 00:00:00 +0800
 categories: 实践
-tags: LDBC
+tags: Linux
 ---
 
 一个有意思的工具：Core Analyzer。这一篇以官方的介绍为主，顺便介绍一下安装和简单使用。
