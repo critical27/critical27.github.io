@@ -631,4 +631,4 @@ void deactivate() {
 
 ## 写在最后
 
-folly的Fiber的实现有点意思，除了提供了通常意义上的用户态线程以及上下文切换之外，最棒的一点在于它兼容了folly的Future，改造成本大大降低。
+folly的Fiber的实现有点意思，除了提供了通常意义上的用户态线程以及上下文切换之外，最棒的一点在于它兼容了folly的Future，改造成本大大降低。另外如果想要进一步了解Fiber的实现原理，可以看看这篇[博客](https://agraphicsguynotes.com/posts/fiber_in_cpp_understanding_the_basics/)。
