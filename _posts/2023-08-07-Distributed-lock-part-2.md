@@ -159,7 +159,7 @@ ZooKeeper不像Redis那样，需要考虑锁的过期时间问题，它是采用
 
 [万字长文说透分布式锁 - 知乎 (zhihu.com)](https://zhuanlan.zhihu.com/p/403282013)
 
-[Distributed Locks with Redis | Redis](https://redis.io/docs/manual/patterns/distributed-locks/)
+[Distributed Locks with Redis](https://redis.io/docs/manual/patterns/distributed-locks/)
 
 [How to do distributed locking — Martin Kleppmann’s blog](https://martin.kleppmann.com/2016/02/08/how-to-do-distributed-locking.html)
 

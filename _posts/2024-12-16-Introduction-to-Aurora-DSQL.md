@@ -60,7 +60,7 @@ Storage能够按key space进行分片，每个分片负责索引一部分数据�
 
 关于Storage是同步还是异步消费Journal，官方博客描述的是一个同步过程：`In a single-Region configuration, Aurora DSQL commits all write transactions to a distributed transaction log and synchronously replicates all committed log data to user storage replicas in three AZs.` 而在reinvent的演讲中，提到了给定时间`t`，去Storage读数据时可能会遇到读不到的情况，会自动重试。不过既然Aurora DSQL描述自己系统是Strong consistency，那么无论消费是同步还是异步，在用户视角肯定都需要保证能够读取到最新数据。
 
-按Aurora DSQL的说法，它目前只提供了一种隔离级别Strong snapshot isolation，也就是PostgreSQL中的REPEATABLE READ。Aurora DSQL的冲突检测是一个典型的OCC，事务的大致流程如下：
+按Aurora DSQL的说法，它目前只提供了一种隔离级别Strong snapshot isolation，也就是PostgreSQL中的REPEATABLE READ。Strong snapshot isolation这个用词不太准确，实际上应该是snapshot isolation + strong consistency。Aurora DSQL的冲突检测是一个典型的OCC，事务的大致流程如下：
 
 ![figure]({{'/archive/Aurora-5.png' | prepend: site.baseurl}})
 

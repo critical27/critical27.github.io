@@ -10,7 +10,7 @@ tags: Linux
 
 ### Introduction
 
- 和hpa不同，pac没有shard的概念，数据结构如下所示。pac中有三个缓存：`ecache_dirty`、`ecache_muzzy`和`ecache_retained`。pac会优先尝试在`ecache_dirty`中分配内存，如果失败则尝试在`ecache_muzzy`中分配内存，如果仍然失败，则会在`ecache_retained`中进行分配。当`ecache_retained`都无法进行内存分配时，此时才会通过base进行内存分配。
+和hpa不同，pac没有shard的概念，数据结构如下所示。pac中有三个缓存：`ecache_dirty`、`ecache_muzzy`和`ecache_retained`。pac会优先尝试在`ecache_dirty`中分配内存，如果失败则尝试在`ecache_muzzy`中分配内存，如果仍然失败，则会在`ecache_retained`中进行分配。当`ecache_retained`都无法进行内存分配时，此时才会通过base进行内存分配。
 
 > 和上一篇一样，如无特殊说明，edata和extent二者可以互换，优先使用代码或者注释中使用的名词。
 >

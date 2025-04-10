@@ -402,8 +402,9 @@ refill的核心逻辑就是一直循环直到获取到足够多空间：
 
 1. 先尝试使用`slabcur`进行refill。(`arena_slab_reg_alloc_batch`)
 2. 如果`slabcur`空间不够，则需要从`slabs_nonfull`中取一个slab，并设置为`slabcur` 。(`arena_bin_refill_slabcur_no_fresh_slab`)
-3. 如果`slabs_nonfull`也为空，此时需要分配一个新的slab，保存到`fresh_slab`中。(`arena_bin_refill_slabcur_with_fresh_slab`)
-4. 如果`fresh_slab`不为空，代表之前分配过一个新的slab，将`fresh_slab`设置为`slabcur`，并从这个新分配的slab中refill。(`arena_slab_alloc`)
+3. 如果`slabs_nonfull`也为空，此时需要获取一个新的slab，此时有两个选择：
+    1. 如果`fresh_slab`不为空，代表之前分配过一个新的slab，将`fresh_slab`设置为`slabcur`，之后会重新走上述流程。(`arena_bin_refill_slabcur_with_fresh_slab`)
+    2. 如果`fresh_slab`为空，需要通过`arena_slab_alloc`分配一个新的slab，设置为`fresh_slab`，之后会重新走上述流程。
 
 - 从`slabs_nonfull`最小堆中获取一个空的slab，然后设置为`slabcur`的代码实现如下
 
