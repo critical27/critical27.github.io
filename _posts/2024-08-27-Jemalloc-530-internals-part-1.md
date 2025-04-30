@@ -2,7 +2,7 @@
 layout: single
 title: Jemalloc 5.3.0 internals, part 1
 date: 2024-08-27 00:00:00 +0800
-categories: 学习
+categories: 源码
 tags: Linux
 ---
 

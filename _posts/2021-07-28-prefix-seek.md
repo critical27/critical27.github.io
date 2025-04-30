@@ -201,21 +201,21 @@ bool DBIter::FindNextUserEntryInternal(bool skipping_saved_key,
 ```c++
 void test(DB* db, bool prefix_same_as_start) {
     Status s;
+    s = db->Put(WriteOptions(), "AAAAB", "value0");
+    assert(s.ok());
+    s = db->Put(WriteOptions(), "AAABB", "value1");
+    assert(s.ok());
+    // 这条数据是用来对比FixedPrefixTransform和CappedPrefixTransform的
     /*
-    s = db->Put(WriteOptions(), "AAB", "value0");
+    s = db->Put(WriteOptions(), "AAB", "value2");
     assert(s.ok());
     */
-    s = db->Put(WriteOptions(), "AAAAB", "value1");
-    assert(s.ok());
-    s = db->Put(WriteOptions(), "AAABB", "value2");
-    assert(s.ok());
     s = db->Put(WriteOptions(), "AABBB", "value3");
     assert(s.ok());
     s = db->Put(WriteOptions(), "ABBBB", "value4");
     assert(s.ok());
     s = db->Put(WriteOptions(), "BBBBB", "value5");
     assert(s.ok());
-
     s = db->Put(WriteOptions(), "C", "value6");
     assert(s.ok());
 
@@ -249,11 +249,19 @@ void test(DB* db, bool prefix_same_as_start) {
         iter->Next();
     }
 
-    cout << "Get full key AABBB: ";
-    std::string value;
-    s = db->Get(ReadOptions(), rocksdb::Slice("AABBB"), &value);
-    assert(s.ok());
-    cout << value.c_str() << "\n";
+  cout << "Prefix seek of A:\n";
+  iter = db->NewIterator(read_options);
+  iter->Seek("A");
+  while (iter->Valid()) {
+    cout << iter->key().ToString().c_str() << "\n";
+    iter->Next();
+  }
+
+  cout << "Get full key AABBB: ";
+  std::string value;
+  s = db->Get(ReadOptions(), rocksdb::Slice("AABBB"), &value);
+  assert(s.ok());
+  cout << value.c_str() << "\n";
 
     cout << "Get full key C: ";
     s = db->Get(ReadOptions(), rocksdb::Slice("C"), &value);
@@ -273,7 +281,6 @@ int main()
     options.create_if_missing = true;
     options.prefix_extractor.reset(NewFixedPrefixTransform(4));
     // options.prefix_extractor.reset(NewCappedPrefixTransform(4));
-    // 自己实现的FixedPrefixTransform
     // options.prefix_extractor.reset(new TestTransform(4));
 
     Status s = DB::Open(options, "/Users/doodle/Mine/rocksdb_test", &db);
@@ -308,7 +315,7 @@ int main()
 
 结果:
 
-1. 当`prefix_same_as_start = true`时，用"AAB"来Prefix查找，一条都查不出来，看下面结果，因为"AAB"无论是用`FixedPrefixTransform`还是`CappedPrefixTransform`所Transform出来的prefix 都不满足下面条件(不在插入的prefix bloom filter中)
+1. 当`prefix_same_as_start = true`时，用"AAB"来Prefix查找，一条都查不出来，看下面结果，因为"AAB"无论是用`FixedPrefixTransform`还是`CappedPrefixTransform`所Transform出来的prefix 都不满足下面条件(不在插入的prefix bloom filter中)，对于前缀"A"也是同理
 
 `prefix_extractor_->Transform(ikey_.user_key).compare(*prefix) != 0`
 
@@ -326,6 +333,7 @@ Prefix seek of AABB:
 AABBB
 Prefix seek of AABBB:
 AABBB
+Prefix seek of A:
 Get full key AABBB: value3
 Get full key C: value6
 
@@ -342,6 +350,13 @@ ABBBB
 BBBBB
 C
 Prefix seek of AABBB:
+AABBB
+ABBBB
+BBBBB
+C
+Prefix seek of A:
+AAAAB
+AAABB
 AABBB
 ABBBB
 BBBBB
@@ -364,6 +379,7 @@ Prefix seek of AABB:
 AABBB
 Prefix seek of AABBB:
 AABBB
+Prefix seek of A:
 Get full key AABBB: value3
 Get full key C: value6
 
@@ -381,6 +397,14 @@ ABBBB
 BBBBB
 C
 Prefix seek of AABBB:
+AABBB
+ABBBB
+BBBBB
+C
+Prefix seek of A:
+AAAAB
+AAABB
+AAB
 AABBB
 ABBBB
 BBBBB
@@ -401,9 +425,9 @@ Prefix seek of AABB:
 AABBB
 Prefix seek of AABBB:
 AABBB
+Prefix seek of A:
 Get full key AABBB: value3
 Get full key C: value6
-
 
 --------------------------
 // prefix_same_as_start = false
@@ -419,6 +443,14 @@ ABBBB
 BBBBB
 C
 Prefix seek of AABBB:
+AABBB
+ABBBB
+BBBBB
+C
+Prefix seek of A:
+AAAAB
+AAABB
+AAB
 AABBB
 ABBBB
 BBBBB
@@ -489,6 +521,7 @@ Prefix seek of AABB:
 AABBB
 Prefix seek of AABBB:
 AABBB
+Prefix seek of A:
 Get full key AABBB: value3
 Get full key C: NotFound:
 
@@ -504,6 +537,7 @@ AABBB
 ABBBB
 BBBBB
 C
+Prefix seek of A:
 Get full key AABBB: value3
 Get full key C: NotFound:
 */
@@ -512,18 +546,23 @@ Get full key C: NotFound:
 `CappedPrefixTransform`结果
 
 ```c++
-// C因为CappedPrefixTransform(4)能生成prefix bloom filter, 所以可以
-/*
 Prefix seek of AAB:
+AAB
 Prefix seek of AABB:
 AABBB
 Prefix seek of AABBB:
 AABBB
+Prefix seek of A:
 Get full key AABBB: value3
 Get full key C: value6
 
 --------------------------
 Prefix seek of AAB:
+AAB
+AABBB
+ABBBB
+BBBBB
+C
 Prefix seek of AABB:
 AABBB
 ABBBB
@@ -534,6 +573,7 @@ AABBB
 ABBBB
 BBBBB
 C
+Prefix seek of A:
 Get full key AABBB: value3
 Get full key C: value6
 */
