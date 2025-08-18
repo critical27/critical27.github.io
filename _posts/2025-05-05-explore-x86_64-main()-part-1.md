@@ -6,7 +6,7 @@ categories: 学习
 tags: Linux
 ---
 
-看了之后“The Bits Between the Bits: How We Get to main()“，本来想按图索骥再学习一遍，没想到在我的环境下已经完全没法复现，于是才有了这篇文章。
+看了“The Bits Between the Bits: How We Get to main()”之后，本来想按图索骥再学习一遍，没想到在我的环境下已经完全没法复现，于是才有了这篇文章。
 
 ## 相关环境
 
