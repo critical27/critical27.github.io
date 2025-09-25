@@ -119,8 +119,8 @@ class ParkingLot {
 
 我们具体看看`park_until`的模板参数：
 
-- `Key`是一个变量的地址，用来计算哈希，找到对应的队列
-- `D`是用来在unpark时候检查这个waiter是否需要继续等待，在part时只是保存进`WaitNode`中
+- `Key`是用来计算哈希，找到对应的队列，一般可以传入某个变量的地址
+- `D`是保存到ParkingLot的数据，在`park`时只是保存进`WaitNode`中，在`unpark`时候可以通过这个数据判断是否继续等待
 - `ToPark`是一个lambda函数，如果返回true则当前线程会进入阻塞等待，返回false则表示不满足等待条件，直接返回
 - `PreWait`也是一个lambda函数，用于在真正等待之前再额外执行一些逻辑
 - `<Clock, Duration>`组成一个`time_point`，用于指定最长等待时间

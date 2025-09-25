@@ -173,9 +173,7 @@ _start
 
 ![figure]({{'/archive/glibc-0.png' | prepend: site.baseurl}})
 
-`dl_main`中的前几部分在上一篇以及有所覆盖，这一篇中我们会主要探索动态链接库的加载流程
-
-。
+`dl_main`中的前几部分在上一篇以及有所覆盖，这一篇中我们会主要探索动态链接库的加载流程。
 
 ### _dl_map_object
 
@@ -214,13 +212,13 @@ _start
 1. 通过`_dl_get_file_id`获取动态链接库唯一标识，在全局链表`GL(dl_ns)[nsid]._ns_loaded`中检查是否已存在相同文件
 2. 如果打开的是`ld.so`，首先需要确保`ld.so`没有被重复打开。如果的确是第一次，则调用`_dl_new_object`，并加入到全局命名空间列表中。
 3. 调用`_dl_new_object`初始化`link_map`，读取ProgramHeaderTable地址，之后开始遍历ProgramHeaderTable读取ProgramHeader（这部分和上一篇文章中`_dl_start`比较相似），不过这里主要是在处理以下几个segment：
-    1. `PT_DYNAMIC`：`.dynamic`的地址，它其中包括了`ld.so`在加载和链接这个动态链接库时所需的信息
-    2. `PT_PHDR`：ProgramHeader的地址
-    3. `PT_LOAD`：可以被加载的segment，即上一篇中通过`readelf -l`看到的ProgramHeaderType为`LOAD`的segment，比如code和data
-    4. `PT_TLS`：Thread-Local Storage
+    * `PT_DYNAMIC`：`.dynamic`的地址，它其中包括了`ld.so`在加载和链接这个动态链接库时所需的信息
+    * `PT_PHDR`：ProgramHeader的地址
+    * `PT_LOAD`：可以被加载的segment，即上一篇中通过`readelf -l`看到的ProgramHeaderType为`LOAD`的segment，比如code和data
+    * `PT_TLS`：Thread-Local Storage
 4. 调用`_dl_map_segments`将动态链接库中的segment映射到内存中，并把相关结果保存到`link_map`中，这个过程会根据动态链接库是否是PIC有不同处理（ET_DYN和ET_EXEC）
-    1. 调用`mmap`进行内存映射
-    2. 调用`__mprotect`对内存中的映射段设置权限（可读可写可执行等），权限是根据ProgramHeader中的pflags设置的，代码在`dl-load.c`中：
+    * 调用`mmap`进行内存映射
+    * 调用`__mprotect`对内存中的映射段设置权限（可读可写可执行等），权限是根据ProgramHeader中的pflags设置的，代码在`dl-load.c`中：
 
         ```cpp
         	  /* Optimize a common case.  */
@@ -238,9 +236,9 @@ _start
         #endif
         ```
 
-    3. 为未初始化数据（BSS）分配空间并清零
+    * 为未初始化数据（BSS）分配空间并清零
 5. 调用`elf_get_dynamic_info`解析`.dynamic`：
-    1. 遍历`.dynamic`中的每个条目，然后根据其标签类型存储在`link_map`中`l_info`合适的部分（包括我们正在研究的全局对象的构造函数）
+    * 遍历`.dynamic`中的每个条目，然后根据其标签类型存储在`link_map`中`l_info`合适的部分（包括我们正在研究的全局对象的构造函数）
 
         ```cpp
         for (ElfW(Dyn)* dyn = l->l_ld; dyn->d_tag != DT_NULL; dyn++) {
@@ -266,7 +264,7 @@ _start
         }
         ```
 
-    2. 如果动态链接库被加载到与其链接地址不同的位置，则会调整动态段中的地址
+    * 如果动态链接库被加载到与其链接地址不同的位置，则会调整动态段中的地址
 
         ```cpp
         /* Don't adjust .dynamic unnecessarily.  */
@@ -317,8 +315,8 @@ _start
 
 首先我们理解下为什么需要重定位：
 
-1. 动态链接库通常被编译为位置无关代码(Position Independent Code)，这意味着它们可以被加载到内存中的任何位置。但是，代码中的符号(如函数和全局变量)在编译时只是占位符，它们的实际地址在程序加载时才能确定。重定位过程会解析这些符号引用，将它们指向正确的内存位置。
-2. 为了提高程序启动性能，动态链接器会使用延迟绑定（Lazy Binding）技术，即函数的实际地址解析推迟到第一次调用时进行。这需要重定位机制的支持。
+* 动态链接库通常被编译为位置无关代码(Position Independent Code)，这意味着它们可以被加载到内存中的任何位置。但是，代码中的符号(如函数和全局变量)在编译时只是占位符，它们的实际地址在程序加载时才能确定。重定位过程会解析这些符号引用，将它们指向正确的内存位置。
+* 为了提高程序启动性能，动态链接器会使用延迟绑定（Lazy Binding）技术，即函数的实际地址解析推迟到第一次调用时进行。这需要重定位机制的支持。
 
 `_dl_relocate_object`会被几个地方调用：
 
@@ -330,8 +328,8 @@ _start
 1. 检查是否已经重定位过。
 2. 一些初始化处理。
 3. 在用`ELF_DYNAMIC_RELOCATE`宏中：
-    1. 调用`elf_machine_runtime_setup`更新GOT
-    2. 完成各种类型的重定位。会根据不同架构（如 x86_64、ARM等）处理不同类型的重定位，如`RELATIVE`、`GLOB_DAT`、`JUMP_SLOT`、`IRELATIVE`等。另外`ELF_DYNAMIC_RELOCATE`在这个过程中会判断是否允许延迟绑定。
+    * 调用`elf_machine_runtime_setup`更新GOT
+    * 完成各种类型的重定位。会根据不同架构（如 x86_64、ARM等）处理不同类型的重定位，如`RELATIVE`、`GLOB_DAT`、`JUMP_SLOT`、`IRELATIVE`等。另外`ELF_DYNAMIC_RELOCATE`在这个过程中会判断是否允许延迟绑定。
 4. 标记重定位完成。
 5. 调用`_dl_protect_relro`来应用RELRO（RELocation Read-Only）保护，将已重定位的只读数据段标记为只读，增强安全性。
 
@@ -345,16 +343,16 @@ _start
 - 加载阶段，`ld.so`通过`_dl_relocate_object`完成重定位
 - 运行阶段，通过PLT和GOT完成延迟绑定
 
-### POT & GOT
+### PLT & GOT
 
-我们先建立下基础概念：POT可以理解为一个跳板，每次进行符号解析时，会先通过POT这个跳板，最终在GOT中查找对应的符号。GOT负责实际保存解析好的符号，如果符号没有解析过，则会进行符号解析（这个过程会存在若干次PLT和GOT之间的跳转）。
+我们先建立下基础概念：PLT可以理解为一个跳板，每次进行符号解析时，会先通过PLT这个跳板，最终在GOT中查找对应的符号。GOT负责实际保存解析好的符号，如果符号没有解析过，则会进行符号解析（这个过程会存在若干次PLT和GOT之间的跳转）。
 
 每个PLT的条目都和GOT中的条目一一对应，对应关系是在编译链接时就确定的。当编译器和链接器创建可执行文件或动态链接库时，它们会：
 
 1. 创建PLT表，其中包含一系列跳转指令，使其引用GOT表中的特定偏移量
 2. 创建GOT表，但此时GOT表中的`GOT[1]`和`GOT[2]`这两个条目是空的（参照下面说明）
 
-我们先看下POT，每个PLT的条目都和GOT中的条目一一对应，我们不妨假设`PLTn`对应`GOT`的第X条目。PLT条目结构如下：
+我们先看下PLT，每个PLT的条目都和GOT中的条目一一对应，我们不妨假设`PLTn`对应`GOT`的第X条目。PLT条目结构如下：
 
 ```nasm
 .PLTn:
@@ -377,26 +375,35 @@ _start
 - `pushq $n`：将PLT中的偏移量或者序号压栈
 - `jmp PLT0`会跳转到一条特殊的条目`PLT0`。它会将`GOT[1]`压栈，然后跳转到`GOT[2]`的地址，即`_dl_runtime_resolve`，进行实际的符号解析。
 
-需要注意的是，在编译链接的阶段生成PLT和GOT后，`PLT0`中虽然使用了`GOT[1]`和`GOT[2]`，但此时`GOT[1]`和`GOT[2]`的实际内容仍为空，它们会在加载阶段由`ld.so`在`elf_machine_runtime_setup`中更新（参见下面流程）。
+需要注意的是，在编译链接的阶段生成PLT和GOT后，`.PLT0`汇编代码中虽然使用了`GOT[1]`和`GOT[2]`，但此时`GOT[1]`和`GOT[2]`的实际内容仍为空，它们会在加载阶段由`ld.so`在`elf_machine_runtime_setup`中更新（参见下面流程）。
 
-GOT表有类似下面的结构，其中前三个条目一定是固定的，指向特殊的地址。而从`GOT[3]`开始（如果存在的话），它保存的是指向某个PLT条目的第二条指令，即`pushq $n`，用于解析一个特定符号。
+GOT表有类似下面的结构，其中前三个条目一定是固定的，指向特殊的地址，分别是：
+
+- `GOT[0]`保存`.dynamic`段的地址
+- `GOT[1]`保存当前动态链接库的`link_map`地址，用于告知`ld.so`是哪个动态链接库请求解析符号
+- `GOT[2]`保存`_dl_runtime_resolve`的地址
+- 从`GOT[3]`开始（如果存在的话），它保存的是指向某个PLT条目的第二条指令，即`pushq $n`，用于解析一个特定符号。
 
 ```
 GOT[0] 动态段dynamic section的地址
 GOT[1] 当前动态链接库的link_map指针 (此时为空)
 GOT[2] _dl_runtime_resolve函数的地址，用于在运行时进行解析 (此时为空)
-GOT[3] 指向某条PLT的第二条指令
-GOT[4] 指向某条PLT的第二条指令
-GOT[5] 指向某条PLT的第二条指令
+GOT[3] 指向对应PLT的第二条指令
+GOT[4] 指向对应PLT的第二条指令
+GOT[5] 指向对应PLT的第二条指令
 
 ...
 ```
 
-`ld.so`需要知道是哪个动态链接库请求解析符号，这就是为什么需要在 `GOT[1]`中存储`link_map`的地址。
+理解PLT和GOT的关键在于：PLT对GOT的引用是通过**偏移量**或**相对地址**实现的。编译链接阶段已经知道PLT和GOT之间的偏移量了。我们可以这么理解PLT中的`jmp *GOT_X(%rip)`，我们在执行这条命令之前已经知道：
 
-理解PLT和GOT的关键在于：PLT对GOT的引用是通过**偏移量**或**相对地址**实现的。编译链接阶段已经知道PLT和GOT之间的偏移量了。我们可以这么理解PLT中的`jmp *GOT_X(%rip)`，我们在执行这条命令之前已经知道PLT和GOT的偏移量，`GOT_X`是第X个条目相对于GOT的偏移量，`%rip`则是当前指令地址，也就是当前PLT某个条目的地址。所以结合几个偏移量，就可以通过相对寻址的方式，找到`PLTn`在GOT中对应的第X个条目。
+- PLT和GOT的偏移量
+- `GOT_X`是第X个条目相对于GOT的偏移量
+- `%rip`则是当前指令地址，也就是当前PLT某个条目的地址。
 
-在编译链接阶段之后，PLT和GOT之间的跳转关系如下图所示：
+所以结合几个偏移量，就可以通过相对寻址的方式，从PLT跳转到`jmp *GOT_X(%rip)`，即从`PLTn`跳转到GOT中对应的第X个条目。
+
+接下来我们通过画图的方式来说明这过程。在编译链接阶段之后，PLT和GOT之间的跳转关系如下图所示：
 
 ![figure]({{'/archive/glibc-1.png' | prepend: site.baseurl}})
 
@@ -470,7 +477,7 @@ __attribute__((unused, always_inline)) elf_machine_runtime_setup(
         - 从`DT_SYMTAB`中查找符号信息
         - 调用`_dl_lookup_symbol_x`在适当的作用域中搜索符号
         - 计算符号的实际地址
-        - 更新GOT表中对应的条目，即GOT中第X个条目不再指向对应的PLTn的第二条指令了，而是指向目标符号地址
+        - 更新GOT表中对应的条目，即GOT中第X个条目不再指向对应的`PLTn`的第二条指令了，而是指向目标符号地址
         - 返回解析后的符号地址
     - 恢复寄存器状态
 - 此时已经完成了符号解析，跳转到这个符号地址开始执行

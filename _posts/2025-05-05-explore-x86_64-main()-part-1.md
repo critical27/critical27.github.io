@@ -92,7 +92,7 @@ ELF Header:
   Section header string table index: 34
 ```
 
-1. 然后加载ELF Header中的`LOAD`（代码段、数据段等）和`INTERP`（链接器）部分，可以使用`readelf -l`来查看
+2. 然后加载ELF Header中的`LOAD`（代码段、数据段等）和`INTERP`（链接器）部分，可以使用`readelf -l`来查看
 
 ```bash
 $ readelf -l main
@@ -158,7 +158,7 @@ Program Headers:
 
 而`INTERP`会指向动态链接器`ld.so`，后续有一部分工作会由`ld.so`来完成。
 
-1. 设置用户态栈，将`argc`、`argv`、`envp`和辅助信息`auxv`(ELF auxiliary vector)压栈，辅助信息下文会描述怎么查看
+3. 设置用户态栈，将`argc`、`argv`、`envp`和辅助信息`auxv`(ELF auxiliary vector)压栈，辅助信息下文会描述怎么查看
 
 ## ld.so
 
@@ -193,62 +193,12 @@ _start
           -> rtld_setup_main_map (根据ProgramHeaderTable 填充用户可执行文件的主link_map)
           -> _dl_map_object_deps (递归加载动态链接库)
           -> init_tls (初始化tls)
-				  -> _dl_relocate_object (重定位动态链接库)
+          -> _dl_relocate_object (重定位动态链接库)
   -> _dl_init
   -> 跳转到用户可执行文件入口
 ```
 
 注意，这里的`_start`不是用户可执行文件的入口地址`_start`，而是`ld.so`的入口。`ld.so`的`_start`不会直接调用`main`，而是跳转到用户可执行文件的入口地址，即用户程序的`_start`。
-
-- `ld.so`的完整`_start`汇编代码如下
-
-    ```nasm
-    /* Initial entry point code for the dynamic linker.
-       The C function `_dl_start' is the real entry point;
-       its return value is the user program's entry point.  */
-    #define RTLD_START asm ("\n\
-    .text\n\
-    	.align 16\n\
-    .globl _start\n\
-    .globl _dl_start_user\n\
-    _start:\n\
-    	movq %rsp, %rdi\n\
-    	call _dl_start\n\
-    _dl_start_user:\n\
-    	# Save the user entry point address in %r12.\n\
-    	movq %rax, %r12\n\
-    	# Save %rsp value in %r13.\n\
-    	movq %rsp, %r13\n\
-    "\
-    	RTLD_START_ENABLE_X86_FEATURES \
-    "\
-    	# Read the original argument count.\n\
-    	movq (%rsp), %rdx\n\
-    	# Call _dl_init (struct link_map *main_map, int argc, char **argv, char **env)\n\
-    	# argc -> rsi\n\
-    	movq %rdx, %rsi\n\
-    	# And align stack for the _dl_init call. \n\
-    	andq $-16, %rsp\n\
-    	# _dl_loaded -> rdi\n\
-    	movq _rtld_local(%rip), %rdi\n\
-    	# env -> rcx\n\
-    	leaq 16(%r13,%rdx,8), %rcx\n\
-    	# argv -> rdx\n\
-    	leaq 8(%r13), %rdx\n\
-    	# Clear %rbp to mark outermost frame obviously even for constructors.\n\
-    	xorl %ebp, %ebp\n\
-    	# Call the function to run the initializers.\n\
-    	call _dl_init\n\
-    	# Pass our finalizer function to the user in %rdx, as per ELF ABI.\n\
-    	leaq _dl_fini(%rip), %rdx\n\
-    	# And make sure %rsp points to argc stored on the stack.\n\
-    	movq %r13, %rsp\n\
-    	# Jump to the user's entry point.\n\
-    	jmp *%r12\n\
-    .previous\n\
-    ");
-    ```
-
 
 接下来我们分别看下三个主要步骤`_dl_start`、`_dl_init`和跳转到用户可执行文件入口是怎么完成的。
 
@@ -494,7 +444,7 @@ $7 = (void *) 0x7fffffffe1b8
 
 之后就开始执行用户的可执行文件了。
 
-我们还可以在ld.so查看跳转到用户可执行文件的对应汇编代码的实际位置，跳转的代码在`0x00007ffff7fe45aa`，而ld.so的其实地址是`0x00007ffff7fc6000`，所以偏移量为`0x1e5aa`。
+我们还可以在ld.so查看跳转到用户可执行文件的对应汇编代码的实际位置，跳转的代码在`0x00007ffff7fe45aa`，而ld.so的q地址起始`0x00007ffff7fc6000`，所以偏移量为`0x1e5aa`。
 
 ```nasm
 (gdb) info sharedlibrary
@@ -894,7 +844,7 @@ AT_??? (0x1c): 0x20
 
 这两个section跟动态链接解析相关的。简单来说，`.plt`保存有跳转到`got`的stub代码，`.plt.got`会保存动态解析后的函数地址。如果指定了no-pie，由于我们只有一个源文件，且没有使用动态链接库，因此在no-pie可执行文件中目前是不会出现这两个section。而pie可执行文件要求所有代码必须是位置无关的，因此外部函数调用不能硬编码地址（比如ASLR会使库加载地址随机化）。并且如果存在动态链接库，必须通过`PLT(Procedure Linkage Table)`进行延迟绑定。
 
-> PIE和我们在编译动态链接库时指定的PIC（Position-Independent Code）都是位置无关代码的实现方式，却别在于PIE只是用于可执行文件，即主程序的，而PIC用于动态链接库(.so)。动态库必须用`-fPIC`，因为多个进程可能加载同一库到不同地址。而PIE是PIC之后才出现的，原因是早期可执行文件默认用固定地址作为加载地址，后来为了增强安全性，引入PIE使主程序也能随机化。
+> PIE和我们在编译动态链接库时指定的PIC（Position-Independent Code）都是位置无关代码的实现方式，区在于PIE只是用于可执行文件，即主程序的，而PIC用于动态链接库(.so)。动态库必须用`-fPIC`，因为多个进程可能加载同一库到不同地址。而PIE是PIC之后才出现的，原因是早期可执行文件默认用固定地址作为加载地址，后来为了增强安全性，引入PIE使主程序也能随机化。
 >
 
 ### __libc_start_main

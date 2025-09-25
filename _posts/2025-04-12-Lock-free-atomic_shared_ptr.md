@@ -43,7 +43,7 @@ void swap(_Ptr_base& _Right) noexcept {
 }
 ```
 
-问题就出在`swap`中，如果线程1只更新了`p1`中的对象指针，还没来得及更新引用计数就因为context switch等被挂起。之后线程2将`global`指向了另一个对象，此时`global`的引用计数部分归零，触发了`global`原来指向对象的析构。当线程1继续执行时，它并不知道挂起期间发生了析构。当它完成赋值后，后续使用这个野指针时就会出现use-after-free。
+问题就出在`swap`中，如果线程1只更新了`p`中的对象指针，还没来得及更新引用计数就因为context switch等被挂起。之后线程2将`global`指向了另一个对象，此时`global`的引用计数部分归零，触发了`global`原来指向对象的析构。当线程1继续执行时，它并不知道挂起期间发生了析构。当它完成赋值后，后续使用这个野指针时就会出现use-after-free。
 
 ## atomic_shared_ptr
 
