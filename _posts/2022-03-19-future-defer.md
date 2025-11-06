@@ -32,7 +32,7 @@ Future的第二弹。
 
 简而言之:
 
-1. defer的函数要么在producer的线程执行(也就是调用SemiFuture::setValue的线程)，要么在consumer的线程执行(也就是调用SemiFuture::get的线程)
+1. defer的函数要么在producer的线程执行(也就是调用SemiFuture::setValue的线程)，要么在consumer的线程执行(也就是调用SemiFuture::get或者SemiFuture::via的线程)
 2. 如果执行上一个回调的executor，和defer的函数执行的executor，是同一个executor，defer的函数会inline执行
 
 ## example
@@ -149,7 +149,7 @@ DeferredExecutor* KeepAliveOrDeferred::getDeferredExecutor() const noexcept {
 
 然后重新构造一个SemiFuture (用同一个core 把func以Inline形式加到这个SemiFuture后面)
 
-> `auto sf = Future<T>(this->core_).thenTryInline(static_cast<F&&>(func)).semi();`
+`auto sf = Future<T>(this->core_).thenTryInline(static_cast<F&&>(func)).semi();`
 
 ```c++
 template <class T>
@@ -167,7 +167,7 @@ Future<T>::thenTryInline(F&& func) && {
 }
 ```
 
-后面可以参考[之前的分析](https://critical27.github.io/c++/2022/02/18/future-deadlock.html)，这个core的初始状态时`Start`，因为是`defer`调用的是`thenTryInline`允许inline执行，所以core的状态会被设置为`State::OnlyCallbackAllowInline`，然后就返回，到这里`defer`就完成了，只是注册了一个callback。
+后面可以参考[之前的分析](https://critical27.github.io/c++/2022/02/18/future-deadlock.html)，这个core的初始状态时`Start`，因为是`defer`调用的是`thenTryInline`允许inline执行，所以core的状态会被设置为`State::OnlyCallbackAllowInline`，然后就返回，到这里`defer`就完成了，本质上只是注册了一个callback。
 
 ```c++
 void CoreBase::setCallback_(
@@ -347,7 +347,7 @@ void DeferredExecutor::addFrom(
 }
 ```
 
-对于我们这个例子里，`DeferredExecutor`的状态是`EMPTY`，然后会设置函数，然后转换为`HAS_FUNCTION`退出，等待后续调用。
+对于我们这个例子里，`DeferredExecutor`的状态是`EMPTY`，然后会设置函数，然后转换为`HAS_FUNCTION`退出，等待后续设置了Executor时调用。
 
 ### SemiFuture::get
 
@@ -393,7 +393,7 @@ SemiFuture<T>& SemiFuture<T>::wait() & {
 }
 ```
 
-可以发现在`wait`的时候如果有`deferredExecutor`，就会新建一个`Promise`，然后再创建一个executor来执行之前推迟的回调。
+可以发现在`wait`的时候如果有`deferredExecutor`，就会新建一个`Promise`，然后再创建一个`WaitExecutor`来执行之前推迟的回调。
 
 而触发`defer`的函数的入口是在`waitExecutor->drive();`这里
 
@@ -407,7 +407,6 @@ class WaitExecutor final : public folly::Executor {
       baton_.reset();
       auto funcs = std::move(queue_.wlock()->funcs);
       for (auto& func : funcs) {
-        // 这个写法是真的诡异 实际就是调用func()...
         std::exchange(func, nullptr)();
       }
     });
@@ -417,7 +416,7 @@ class WaitExecutor final : public folly::Executor {
 };
 ```
 
-在`drive`里面实际就是把之前`defer`的函数都一次取出来然后开始执行
+在`drive`里面实际就是把之前`defer`的函数都一次取出来然后开始执行。
 
 `fibers::runInMainContext`是之前看`fiber`时候遇到的函数，下面是README里面的介绍：
 
