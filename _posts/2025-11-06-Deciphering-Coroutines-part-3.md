@@ -47,7 +47,7 @@ void await_suspend(std::coroutine_handle<promise_type> h) noexcept {
 
 当callee的协程体执行完之后，在`co_await callee_promise.final_suspend`时，在对应的`FinalAwaiter::await_suspend`中，通过promise获取到caller的`coroutine_handle`，然后调用`.resume()`恢复`caller`执行。注意`caller`的协程栈会在当前调用栈的基础上展开，只有当`caller`执行完成之后，相关的栈才会释放。
 
-> 在上一篇提到过，这里再强调下：无论谁来调用`.resume`都一样，.resume的调用方在调用时，都会像一个普通函数调用一样，在当前栈的基础上增长出恢复的协程栈。
+> 在上一篇提到过，这里再强调下：无论谁来调用`.resume`都一样，`.resume`的调用方在调用时，都会像一个普通函数调用一样，在当前栈的基础上增长出恢复的协程栈。
 >
 
 乍一看，都是在某个`Awaiter`的`await_suspend`中恢复了另一个协程。但其实二者有以下不同：
@@ -93,7 +93,7 @@ main()
 
 根据[标准](https://eel.is/c++draft/expr.await#5.1.1)来说，Symmetric transfer并不要做很多修改，只需要在协程需要挂起时，在对应的`Awaiter::await_suspend`中返回一个 `coroutine_handle`，表明控制流应该对称地移交到由返回的`coroutine_handle`所标识的协程。进一步的问题是，控制流是怎么交给这个协程的？
 
-要回答这个问题，我们需要了解编译器在Symmetric transfer情况是如何展开`co_await`，从便于理解的角度来说，大概会变成下面的样子。
+要回答这个问题，我们需要了解编译器在Symmetric transfer情况是如何展开co_await。
 
 ```cpp
 {
@@ -400,11 +400,11 @@ suspend_index = 7:  销毁时从状态6清理
     1845:  mov    %rdi,-0x28(%rbp)
 ```
 
-这里在多提一点，状态机函数的只有一个参数，即协程的coroutine frame指针。每次调用状态机函数，都会把这个指针都保存到了`-0x28(%rbp)`处。
+这里再多提一点，状态机函数的只有一个参数，即协程的coroutine frame指针。每次调用状态机函数，都会把这个指针都保存到了`-0x28(%rbp)`处。
 
 ### main → caller
 
-接下来，我们梳理整个demo的执行流程，完整的汇编参见[这里](https://gist.github.com/critical27/0a95391b8df0df2de3d60d792f547325)。`caller`的状态机函数入口地址为`1838`，`callee`的状态机函数入口地址为`13fb`。
+接下来，我们梳理整个demo的执行流程，完整的汇编参见[这里](https://gist.github.com/critical27/0a95391b8df0df2de3d60d792f547325)（为了便于理解，编译器指定`-O0`）。`caller`的状态机函数入口地址为`1838`，`callee`的状态机函数入口地址为`13fb`。
 
 1. `main`调用`caller()`，创建协程
 
@@ -430,7 +430,7 @@ suspend_index = 7:  销毁时从状态6清理
     ┌─────────────────────────────────────────┐ ← High Address
     │ main()                                  │
     ├─────────────────────────────────────────┤
-    │ caller() constructor [16e6]             │
+    │ caller() constructor                    │
     │ - return addr: 0x1cbc (main)            │ ← pushed by call at 0x1cb7
     └─────────────────────────────────────────┘ ← Low Address (rsp)
 
@@ -497,10 +497,10 @@ suspend_index = 7:  销毁时从状态6清理
     ┌─────────────────────────────────────────┐ ← High Address
     │ main()                                  │
     ├─────────────────────────────────────────┤
-    │ caller() constructor [16e6]             │
+    │ caller() constructor                    │
     │ - return addr: 0x1cbc (main)            │ ← pushed by call at 0x1cb7
     ├─────────────────────────────────────────┤
-    │ caller.Frame.actor [1838]               │
+    │ caller_resume                           │
     │ - return addr: 0x1791                   │ ← pushed by call at 0x178c
     └─────────────────────────────────────────┘ ← Low Address (rsp)
 
@@ -511,7 +511,7 @@ suspend_index = 7:  销毁时从状态6清理
 
 2. `caller`协程的`suspend_index`初始值为`0`。由于`initial_suspend`是`suspend_always`，因此在`co_await promise.initial_suspend`时，`await_ready`返回`false`，代表会被挂起，而`await_suspend`返回`void`，代表无条件将控制流返回给调用方，且在返回之前`suspend_index`被设置为`2`。
 
-    状态机函数返回后，依次执行返回地址`1791`的代码，最终由返回到main函数。
+    状态机函数返回后，依次执行返回地址`1791`的代码，最终由返回到`main`函数。
 
     ```nasm
     1791:  jmp    181a
@@ -684,9 +684,9 @@ suspend_index = 7:  销毁时从状态6清理
     1b6e:  mov    %rax,%rdi
     1b71:  call   1dd4 <...address>   ; 调用coroutine_handle::address
                                       ; %rax = callee_frame pointer
-    1b76:  mov    (%rax),%rdx         ; rdx = *(callee_frame) = callee's resume函数地址
+    1b76:  mov    (%rax),%rdx         ; rdx = *(callee_frame) = callee's resume_fn函数地址 即状态机函数
     1b79:  mov    %rax,%rdi           ; rdi = callee_frame pointer
-    1b7c:  call   *%rdx               ; ★ indirect tail call调用callee.resume() ★
+    1b7c:  call   *%rdx               ; ★ indirect tail call调用callee的状态机函数 ★
     1b7e:  jmp    1c46 <cleanup>
     ```
 
@@ -774,9 +774,9 @@ suspend_index = 7:  销毁时从状态6清理
     15ac:  mov    %rax,%rdi
     15af:  call   1dd4 <...address>   ; 调用coroutine_handle::address
                                       ; %rax = caller_frame pointer
-    15b4:  mov    (%rax),%rdx         ; %rdx = *(caller_frame) = caller's resume函数地址
+    15b4:  mov    (%rax),%rdx         ; %rdx = *(caller_frame) = caller's resume_fn函数地址 即状态机函数
     15b7:  mov    %rax,%rdi           ; %rdi = caller_frame pointer
-    15ba:  call   *%rdx               ; ★ indirect tail call调用caller.resume() ★
+    15ba:  call   *%rdx               ; ★ indirect tail call调用caller状态机函数 ★
     15bc:  jmp    1698 <cleanup>
     ```
 
@@ -864,8 +864,7 @@ suspend_index = 7:  销毁时从状态6清理
     1a2f:  mov    %rax,%rdi
     1a32:  call   24d4 <...>          ; 调用callee_awaiter的析构函数
     1a37:  cmp    $0x1,%ebx
-    1a3a:  jne    1a43 <.
-    ..>          ; %ebx为1 不跳转
+    1a3a:  jne    1a43 <...>          ; %ebx为1 不跳转
     1a3c:  mov    $0x1,%ebx
     1a41:  jmp    1a48 <...>
     1a43:  mov    $0x0,%ebx
@@ -1239,9 +1238,9 @@ lea    -0x20(%rbp),%rax    ; rax = &(coroutine_handle)
 mov    %rax,%rdi
 call   1dd4 <...address>   ; 调用coroutine_handle::address
                            ; %rax = frame pointer
-mov    (%rax),%rdx         ; rdx = *(frame pointer) = resume函数地址
+mov    (%rax),%rdx         ; rdx = *(frame pointer) = resume_fn函数地址 即状态机函数
 mov    %rax,%rdi           ; rdi = frame pointer
-call   *%rdx               ; indirect tail call调用协程的状态机函数
+call   *%rdx               ; indirect tail call调用对应协程的状态机函数
 jmp    1c46 <cleanup>
 ```
 
