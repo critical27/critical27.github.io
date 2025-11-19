@@ -443,7 +443,7 @@ suspend_index = 7:  销毁时从状态6清理
     - 分配coroutine frame所需要的内存
     - 创建`promise`
     - 调用`promise.get_return_object()`
-    - 第一次调用caller协程的状态机函数
+    - 第一次调用`caller`协程的状态机函数
 
     ```nasm
     00000000000016e6 <_Z6callerv>:
@@ -604,7 +604,7 @@ suspend_index = 7:  销毁时从状态6清理
     1987:  call   1140 <...>          ; 输出字符串
     ```
 
-2. `co_await callee()`，对应汇编如下，会通过`call 12a9`创建`callee`协程
+2. `co_await callee()`，对应汇编如下，会通过`call 12a9`创建`callee`协程。
 
     ```nasm
     198c:  mov    -0x28(%rbp),%rax
@@ -627,7 +627,7 @@ suspend_index = 7:  销毁时从状态6清理
     19cc:  je     1a0b <...>          ; 如果await_ready返回true 跳转到状态4
     ```
 
-3. 由于`await_ready`返回`false`，调用`Awaiter::await_suspend`对称转移至`callee`
+3. 由于`await_ready`返回`false`，调用`Awaiter::await_suspend`对称转移至`callee`，即返回`callee`的`coroutine_handle`，将控制权交给`callee`。
 
     ```cpp
     std::coroutine_handle<> await_suspend(std::coroutine_handle<> continuation) noexcept {
@@ -744,7 +744,7 @@ suspend_index = 7:  销毁时从状态6清理
                                       ; 即标识callee协程已完成 状态机函数后续不能再被调用
     ```
 
-    最终进入到`co_await final_suspend`阶段。`FinalAwaiter`的`await_ready`返`回false`，于是在`await_suspend`处再次对称转移。
+    最终进入到`co_await final_suspend`阶段。`FinalAwaiter`的`await_ready`返回`false`，于是在`await_suspend`处再次对称转移。注意`caller`的`coroutine_handle`已经在前面被保存在了`callee`的promise中，`FinalAwaiter::await_suspend`返回`caller`的`coroutine_handle`即可将控制权再交还给`caller`。
 
     ```cpp
     std::coroutine_handle<> await_suspend(std::coroutine_handle<promise_type> h) noexcept {
@@ -934,7 +934,7 @@ suspend_index = 7:  销毁时从状态6清理
     16e5:  ret
     ```
 
-    最后，在状态机函数中析构promise，并调用`operator delete`释放内存
+    最后，在状态机函数中析构promise，并调用`operator delete`释放内存：
 
     ```nasm
     00000000000013fb <_Z6calleePZ6calleevE16_Z6calleev.Frame.actor>:
@@ -1068,7 +1068,7 @@ suspend_index = 7:  销毁时从状态6清理
     1b7e:  jmp    1c46 <...>          ; 跳转至1c46返回
     ```
 
-3. 最终在`caller`状态机函数返回
+3. 最终在`caller`状态机函数返回：
 
     ```nasm
     ; epilogue
