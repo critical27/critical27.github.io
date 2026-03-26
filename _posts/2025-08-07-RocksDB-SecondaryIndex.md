@@ -84,13 +84,13 @@ TEST_P(TransactionTest, SecondaryIndexPutDelete) {
     ASSERT_TRUE(it->value().empty());
 
   }
-  
+
   // ...
 }
 ```
 
 > 另外RocksDB可以支持数据和对应的索引保存在不同的column family中，即上面例子中的`SetPrimaryColumnFamily`和`SetSecondaryColumnFamily`
-> 
+>
 
 ### 写入流程
 
@@ -131,7 +131,7 @@ SecondaryIndexMixin::GetPrimaryEntryForUpdate
 ```
 
 > `SecondaryIndexMixin`中有个模版参数Txn，目前二级索引只支持`PessimisticTransaction`。
-> 
+>
 
 最终调用到`WriteBatchWithIndex::GetEntityFromBatchAndDB`，这里面会先调用`GetEntityFromBatch`尝试从当前事务的写入中读取这个key（即read-own-write），如果读不到，则会调用`DBImpl::GetImpl`走正常的读逻辑。
 
@@ -174,29 +174,29 @@ SecondaryIndexMixin::GetPrimaryEntryForUpdate
 
 - 对于最普通的二级索引即`SimpleSecondaryIndex`来说，`GetSecondaryKeyPrefix`返回的就是primary column中的值。（目前rocksdb也支持了faiss的向量索引，也是通过二级索引来实现的，之类行为会有所区别）
 - 之后在`FinalizeSecondaryKeyPrefix`中确定要删除二级索引的数据的前缀，实际就是一个 `VarInt32`加上当前二级索引对应的priamry column的值，即`VarInt32 + bar`。对应我们的例子中，`bar`的长度为3，`VarInt32`也是3，十六进制下的二级索引前缀就是就是`03626172`。
-    
+
     ```cpp
     Status SimpleSecondaryIndex::FinalizeSecondaryKeyPrefix(
         std::variant<Slice, std::string>* secondary_key_prefix) const {
       assert(secondary_key_prefix);
-    
+
       std::string prefix;
       PutLengthPrefixedSlice(&prefix,
                              SecondaryIndexHelper::AsSlice(*secondary_key_prefix));
-    
+
       *secondary_key_prefix = std::move(prefix);
-    
+
       return Status::OK();
     }
     ```
-    
+
 - 此时可以得到最终二级索引中二级索引的key，即代码中的`secondary_key_prefix + primary_key`。
-    
+
     ```
     03 62 61 72 6B 65 79 32
        b  a  r  k  e  y  2
     ```
-    
+
 - 调用SingleDelete删除二级索引中的key
 
 在前两步`GetPrimaryEntryForUpdate`和`RemoveSecondaryEntries中`，已经删除了老的二级索引。之后就开始处理要写入的新数据，在`UpdatePrimaryColumnValues`中，根据要写入的值，确定会有哪些二级索引需要更新，并把每个二级索引需要写入的字段保存到`IndexData`中。
