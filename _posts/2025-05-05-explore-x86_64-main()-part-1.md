@@ -361,7 +361,7 @@ static inline ElfW(Addr) __attribute__((always_inline)) _dl_start_final(void* ar
 }
 ```
 
-`_dl_sysdep_start`回之前的汇编代码如下：
+`_dl_sysdep_start`返回之前的汇编代码如下：
 
 ```nasm
    # ...
@@ -444,7 +444,7 @@ $7 = (void *) 0x7fffffffe1b8
 
 之后就开始执行用户的可执行文件了。
 
-我们还可以在ld.so查看跳转到用户可执行文件的对应汇编代码的实际位置，跳转的代码在`0x00007ffff7fe45aa`，而ld.so的q地址起始`0x00007ffff7fc6000`，所以偏移量为`0x1e5aa`。
+我们还可以在ld.so查看跳转到用户可执行文件的对应汇编代码的实际位置，跳转的代码在`0x00007ffff7fe45aa`，而ld.so的其实地址是`0x00007ffff7fc6000`，所以偏移量为`0x1e5aa`。
 
 ```nasm
 (gdb) info sharedlibrary

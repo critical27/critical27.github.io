@@ -340,6 +340,7 @@ _start
 - 数据结构：
     - PLT（Procedure Linkage Table，对应`.plt`）
     - GOT（Global Offset Table，对应`.plt.got`）
+    - 注意还有一个`.got`，它主要是用于全局变量的立即绑定，与这里要介绍的延迟绑定无关
 - 加载阶段，`ld.so`通过`_dl_relocate_object`完成重定位
 - 运行阶段，通过PLT和GOT完成延迟绑定
 
@@ -372,7 +373,7 @@ _start
 每个PLT Entry包含三条指令：
 
 - `jmp *GOT_X(%rip)`会跳转到对应GOT条目所指向的地址。GOT除了前三个Entry之外，每一个Entry一开始都会指向对应PLT Entry的第二条指令。以`PLTn`为例，对应的GOT条目中的地址指向`PLTn`的第二条指令`pushq $n`，实际也就是当前指令`jmp *GOT_X(%rip)`的下一条指令。
-- `pushq $n`：将PLT中的偏移量或者序号压栈
+- `pushq $n`：将重定位表`.rela.plt`中的偏移量或者序号压栈
 - `jmp PLT0`会跳转到一条特殊的条目`PLT0`。它会将`GOT[1]`压栈，然后跳转到`GOT[2]`的地址，即`_dl_runtime_resolve`，进行实际的符号解析。
 
 需要注意的是，在编译链接的阶段生成PLT和GOT后，`.PLT0`汇编代码中虽然使用了`GOT[1]`和`GOT[2]`，但此时`GOT[1]`和`GOT[2]`的实际内容仍为空，它们会在加载阶段由`ld.so`在`elf_machine_runtime_setup`中更新（参见下面流程）。
@@ -403,7 +404,7 @@ GOT[5] 指向对应PLT的第二条指令
 
 所以结合几个偏移量，就可以通过相对寻址的方式，从PLT跳转到`jmp *GOT_X(%rip)`，即从`PLTn`跳转到GOT中对应的第X个条目。
 
-接下来我们通过画图的方式来说明这过程。在编译链接阶段之后，PLT和GOT之间的跳转关系如下图所示：
+接下来我们通过画图的方式来说明这过程。在编译链接阶段之后，PLT和GOT之间的跳转关系如下图所示。此时动态库还未加载，因此`GOT[1]`和`GOT[2]`是空的。
 
 ![figure]({{'/archive/glibc-1.png' | prepend: site.baseurl}})
 
@@ -469,7 +470,7 @@ __attribute__((unused, always_inline)) elf_machine_runtime_setup(
 在运行时，当第一次调用某个使用延迟绑定的函数时，控制流会转到PLT中的代码，不妨假设是上面的`PLTn`：
 
 - 跳转`*GOT_X(%rip)`，实际也就是`jmp *GOT_X(%rip)`的下一条指令`push $n`
-- `pushq $n`会将重定位表中的偏移量或者序号压栈，通过这个偏移量，`ld.so`在调用时`_dl_runtime_resolve`就能找到重定位表中对应的Entry。
+- `pushq $n`会将重定位表`.rela.plt`中的偏移量或者序号压栈，通过这个偏移量，`ld.so`在调用时`_dl_runtime_resolve`就能找到重定位表中对应的Entry。
 - 之后开始执行`PLT0`的逻辑，即将`GOT[1]`即`link_map`指针压栈，并跳转到`GOT[2]`指向的`_dl_runtime_resolve`函数进行符号解析（代码在`sysdeps/x86_64/dl-trampoline.h`）：
     - 保存当前寄存器状态
     - 从栈上获取参数（偏移量`reloc_arg`和`link_map`）

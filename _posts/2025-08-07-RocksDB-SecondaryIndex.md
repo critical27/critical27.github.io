@@ -16,6 +16,7 @@ RocksDB在今年的版本，引入了新的实验性功能二级索引，这两�
 2. 在写入的过程中，任何写入的数据只要包含这个匿名列，就会自动维护对应的二级索引。比如下面例子中`key2`和`key3`的就会在二级索引中有对应数据，而`key1`因为没有写入匿名列，所以不存在对应二级索引数据。
 3. 读取的时候通过`SecondaryIndexIterator`进行迭代查找即可，比如要查找所有对应匿名列value为`bar`的key，只需要对`SecondaryIndexIterator`进行`Seek("bar")`之后，既可获取。
 
+{% raw %}
 ```cpp
 TEST_P(TransactionTest, SecondaryIndexPutDelete) {
   const TxnDBWritePolicy write_policy = std::get<2>(GetParam());
@@ -88,6 +89,7 @@ TEST_P(TransactionTest, SecondaryIndexPutDelete) {
   // ...
 }
 ```
+{% endraw %}
 
 > 另外RocksDB可以支持数据和对应的索引保存在不同的column family中，即上面例子中的`SetPrimaryColumnFamily`和`SetSecondaryColumnFamily`
 >
